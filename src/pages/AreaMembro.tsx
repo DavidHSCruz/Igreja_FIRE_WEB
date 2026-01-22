@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { FaSearch, FaMusic, FaCamera, FaUser, FaRegClock } from "react-icons/fa"
-import { BsChatSquareQuoteFill } from "react-icons/bs"
+import { FaSearch } from "react-icons/fa";
+import { PostList, Post } from '../components/PostList/PostList';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
-import { Link } from 'react-router-dom';
+import { MemberProfileCard } from '../components/MemberProfileCard/MemberProfileCard';
+import { MyScales } from '../components/MyScales/MyScales';
+import { AvailableScales } from '../components/AvailableScales/AvailableScales';
 
 interface Verse {
   bookName: string;
@@ -13,22 +15,16 @@ interface Verse {
   text: string;
 }
 
-interface Post {
-  id: string;
-  title: string;
-  content: string;
-  createdAt: string;
-  author: {
-    membro?: {
-      nome: string;
-    }
-  }
-}
-
 export const AreaMembro = () => {
-  const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [dailyVerse, setDailyVerse] = useState<Verse | null>(null);
+  const { user, refreshUser } = useAuth(); // Add refreshUser from context
+  const [refreshTrigger, setRefreshTrigger] = useState(0); // State to trigger re-renders/fetches
+
+  const handleUpdate = () => {
+    setRefreshTrigger(prev => prev + 1);
+    if (refreshUser) refreshUser(); // Refresh user data (including MyScales)
+  };
 
   useEffect(() => {
     async function fetchDailyVerse() {
@@ -39,10 +35,7 @@ export const AreaMembro = () => {
         console.error("Erro ao buscar versículo:", error);
       }
     }
-    fetchDailyVerse();
-  }, []);
 
-  useEffect(() => {
     async function fetchPosts() {
       try {
         const response = await api.get('/posts');
@@ -51,63 +44,21 @@ export const AreaMembro = () => {
         console.error("Erro ao buscar posts:", error);
       }
     }
+    
+    fetchDailyVerse();
     fetchPosts();
-  }, []);
+  }, [refreshTrigger]); // Re-fetch when trigger changes
 
   return (
     <div className="min-h-screen bg-[#0F0F0F] text-primary font-montserrat">
       <main className="w-5/6 m-auto grid grid-cols-1 lg:grid-cols-12 gap-6 px-4 md:px-8 pb-8 pt-32">
-        {/* Coluna Esquerda - Perfil */}
         <aside className="lg:col-span-3 space-y-6">
-          <div className="bg-[#161616] rounded-xl flex flex-col items-center text-center overflow-hidden border border-white/5">
-             {/* Cabeçalho Vermelho */}
-             <div className="w-full h-24 bg-secondary relative">
-                <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full bg-white flex items-center justify-center border-4 border-[#161616]">
-                   <FaUser className="text-4xl text-black" />
-                </div>
-             </div>
-             
-             <div className="pt-12 pb-6 px-6 w-full">
-                <h2 className="text-lg font-bold text-white">{user?.membro?.nome || user?.email || 'Usuário'}</h2>
-                <p className="text-[10px] text-gray-400 mb-4 uppercase tracking-wide">{user?.systemRole || 'Visitante'}</p>
-                
-                <div className="w-full h-px bg-white/10 mb-4"></div>
-                
-                <h3 className="text-gray-300 text-sm mb-4">Atividades</h3>
-                
-                <div className="space-y-3 mb-6">
-                   <button className="w-full bg-[#252525] hover:bg-[#303030] py-3 px-4 rounded-xl flex items-center gap-4 transition-all group">
-                      <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center">
-                         <FaMusic className="text-sm" />
-                      </div>
-                      <span className="text-[10px] font-bold uppercase text-gray-300">Louvor</span>
-                   </button>
-                   
-                   <button className="w-full bg-[#252525] hover:bg-[#303030] py-3 px-4 rounded-xl flex items-center gap-4 transition-all group">
-                      <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center">
-                         <FaCamera className="text-sm" />
-                      </div>
-                      <span className="text-[10px] font-bold uppercase text-gray-300">Comunicação</span>
-                   </button>
-                </div>
-                
-                <div className="w-full h-px bg-white/10 mb-4"></div>
-                
-                <Link 
-                  to="/areamembro/profile"
-                  className="text-[10px] font-bold text-gray-500 hover:text-white uppercase tracking-wider"
-                >View Profile
-                </Link>
-             </div>
-          </div>
+          <MemberProfileCard user={user} />
 
-          <div className="bg-[#161616] rounded-xl p-6 border border-white/5">
-            <h3 className="text-sm text-gray-300 mb-4 pb-2 border-b border-white/10">Sugestões</h3>
-            <div className="bg-[#252525] rounded-lg p-3">
-               <h4 className="font-bold text-xs text-gray-300 mb-1 border-b border-white/10 pb-1 inline-block">Bíblia em 365 dias</h4>
-               <p className="text-[10px] text-gray-500 mt-1">Pequena descrição à respeito do plano de leitura..</p>
-            </div>
-          </div>
+          <MyScales scales={user?.membro?.escalas || []} onUpdate={handleUpdate} />
+          
+          {/* Pass handleUpdate to refresh everything when user joins a scale */}
+          <AvailableScales key={refreshTrigger} onUpdate={handleUpdate} />
         </aside>
 
         {/* Coluna Central - Conteúdo Principal */}
@@ -133,48 +84,14 @@ export const AreaMembro = () => {
                    </p>
                  </>
                ) : (
-                 <div className="flex justify-center items-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-                 </div>
+                  <p className="text-gray-500 text-xs italic">Carregando versículo...</p>
                )}
             </div>
           </div>
 
           {/* Feed / Comunicação */}
           <div className="space-y-4">
-             {posts.map(post => (
-                <div key={post.id} className="bg-[#161616] rounded-xl p-6 border border-white/5 flex flex-col justify-between">
-                   <div>
-                      <div className="flex items-center gap-3 mb-4">
-                          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
-                            <FaUser className="text-black text-xl" />
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-white text-sm">{post.title}</h4>
-                            <p className="text-[10px] text-gray-500 flex items-center gap-1">
-                                <FaRegClock className="text-[10px]" /> {new Date(post.createdAt).toLocaleDateString('pt-BR')}
-                            </p>
-                          </div>
-                      </div>
-                      <p className="text-gray-300 text-sm mb-4">
-                        {post.content}
-                      </p>
-                   </div>
-                   
-                   <div className="w-full h-px bg-white/10 mt-auto mb-4"></div>
-                   
-                   <div className="flex gap-6 text-xs text-gray-500">
-                      <button className="flex items-center gap-2 hover:text-white transition-colors">
-                         <BsChatSquareQuoteFill className="text-sm" /> Comentarios
-                      </button>
-                   </div>
-                </div>
-             ))}
-             {posts.length === 0 && (
-                <div className="bg-[#161616] rounded-xl p-6 border border-white/5 text-center text-gray-500 min-h-[100px] flex items-center justify-center">
-                  <p>Nenhum post disponível no momento.</p>
-                </div>
-             )}
+             <PostList posts={posts} />
           </div>
         </section>
 

@@ -1,5 +1,39 @@
-import { createContext, useState, useEffect, ReactNode, useContext } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { api } from '../services/api';
+
+type Atividade = {
+  id: string;
+  name: string;
+  description?: string;
+  active: boolean;
+  atuacaoId?: string;
+  papel?: string;
+};
+
+type Ministerio = {
+  id: string;
+  name: string;
+  description?: string;
+  papel: string;
+  atividades: Atividade[];
+};
+
+type Area = {
+  id: string;
+  name: string;
+  description?: string;
+  papel: string;
+  atividades: Atividade[];
+};
+
+type Escala = {
+  id: string;
+  data: string;
+  evento: string;
+  atividade: Atividade;
+  local: string;
+  tipo: string;
+};
 
 export interface User {
   id: string;
@@ -10,7 +44,9 @@ export interface User {
     nome: string;
     email: string;
     dataNascimento: string;
-    // Add other fields as needed
+    ministerios?: Ministerio[];
+    areas?: Area[];
+    escalas?: Escala[];
   };
 }
 
@@ -19,6 +55,7 @@ interface AuthContextData {
   isAuthenticated: boolean;
   login: (token: string, user: User) => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   loading: boolean;
 }
 
@@ -57,8 +94,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const currentUser = user || (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null);
+      
+      if (!token || !currentUser?.id) return;
+
+      const response = await api.get(`/users/${currentUser.id}/complete-profile`);
+      const updatedUser = response.data;
+      
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+    } catch (error) {
+      console.error("Error refreshing user:", error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout, refreshUser, loading }}>
       {children}
     </AuthContext.Provider>
   );

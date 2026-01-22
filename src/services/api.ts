@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const url = 'https://igreja-fire-api.onrender.com/'; //'http://localhost:3000'
+
 export const api = axios.create({
-  baseURL: 'http://localhost:3001',
+  baseURL: url,
 });
 
 api.interceptors.request.use((config) => {

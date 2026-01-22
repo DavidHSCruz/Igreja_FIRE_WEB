@@ -11,6 +11,7 @@ import { Grs } from './pages/Grs'
 import { AreaMembro } from './pages/AreaMembro'
 import { Profile } from './pages/Profile'
 import { LoginMembro } from './pages/LoginMembro'
+import { AreaMinisterioPage } from './pages/AreaMinisterioPage'
 import { useAuth } from './contexts/AuthContext'
 
 
@@ -34,6 +35,7 @@ function SelectNavBar(setWidth: (width: number) => void) {
 
 function App() {
   const [width, setWidth] = useState(window.innerWidth)
+
   SelectNavBar(setWidth)
 
   return (
@@ -48,6 +50,7 @@ function App() {
 
 function AppContent({ width }: { width: number }) {
   const { pathname } = useLocation()
+  const { user } = useAuth()
   const isMemberArea = pathname.startsWith('/areamembro')
 
   function RequireAuth({ children }: { children: JSX.Element }) {
@@ -82,7 +85,15 @@ function AppContent({ width }: { width: number }) {
         <Route path="/areamembro/login" element={<LoginMembro />} />
         <Route path="/areamembro/profile" element={
             <RequireAuth>
-              <Profile />
+              {!user?.membro ? <Navigate to="/areamembro" replace />
+              :
+                <Profile />
+              }
+            </RequireAuth>
+        } />
+        <Route path="/areamembro/details/:type/:id" element={
+            <RequireAuth>
+              <AreaMinisterioPage />
             </RequireAuth>
         } />
         <Route path="/areamembro/configuracoes" element={

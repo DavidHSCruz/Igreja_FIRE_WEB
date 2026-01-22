@@ -1,9 +1,18 @@
 import { useState } from 'react';
-import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaCalendarAlt, FaIdCard, FaCamera, FaMusic, FaHandsHelping, FaGraduationCap, FaBookOpen, FaCalendarCheck, FaMicrophone, FaVideo, FaNetworkWired, FaVolumeUp, FaBroadcastTower, FaClock, FaEdit, FaSave, FaTimes } from "react-icons/fa";
+import { Navigate } from 'react-router-dom';
+import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaCalendarAlt, FaIdCard, FaCamera, FaMusic, FaGraduationCap, FaBookOpen, FaCalendarCheck, FaNetworkWired, FaVolumeUp, FaBroadcastTower, FaClock, FaEdit, FaSave, FaTimes } from "react-icons/fa";
 import { useAuth } from '../contexts/AuthContext';
+import { MemberProfileCard } from '../components/MemberProfileCard/MemberProfileCard';
 
 export const Profile = () => {
   const { user } = useAuth();
+  
+  // Logic to block visitor access
+  const isVisitor = !user?.systemRole || user.systemRole === 'VISITANTE';
+  if (isVisitor) {
+    return <Navigate to="/areamembro" replace />;
+  }
+
   const [activeTab, setActiveTab] = useState<'dados' | 'endereco'>('dados');
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -46,39 +55,17 @@ export const Profile = () => {
         
         {/* Left Column - Same as AreaMembro for consistency */}
         <aside className="lg:col-span-3 space-y-6">
-          <div className="bg-[#161616] rounded-xl flex flex-col items-center text-center overflow-hidden border border-white/5">
-             <div className="w-full h-24 bg-secondary relative">
-                <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full bg-white flex items-center justify-center border-4 border-[#161616]">
-                   <FaUser className="text-4xl text-black" />
-                </div>
-             </div>
-             
-             <div className="pt-12 pb-6 px-6 w-full">
-                <h2 className="text-lg font-bold text-white">{user?.membro?.nome || user?.email || 'Usuário'}</h2>
-                <p className="text-[10px] text-gray-400 mb-4 uppercase tracking-wide">{user?.systemRole || 'Visitante'}</p>
-                
-                <div className="w-full h-px bg-white/10 mb-4"></div>
-                
-                <h3 className="text-gray-300 text-sm mb-4">Atividades</h3>
-                
-                <div className="space-y-3 mb-6">
-                   {[
-                      { name: 'Multimídia', icon: <FaCamera /> },
-                      { name: 'Louvor', icon: <FaMusic /> },
-                      { name: 'Redes Sociais', icon: <FaNetworkWired /> },
-                      { name: 'Som', icon: <FaVolumeUp /> },
-                      { name: 'Live', icon: <FaBroadcastTower /> },
-                   ].map((activity, index) => (
-                      <button key={index} className="w-full bg-[#252525] hover:bg-[#303030] py-3 px-4 rounded-xl flex items-center gap-4 transition-all group border border-transparent hover:border-secondary/20">
-                         <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center group-hover:bg-secondary group-hover:text-white transition-colors">
-                            <div className="text-sm">{activity.icon}</div>
-                         </div>
-                         <span className="text-[10px] font-bold uppercase text-gray-300 group-hover:text-white transition-colors">{activity.name}</span>
-                      </button>
-                   ))}
-                </div>
-             </div>
-          </div>
+          <MemberProfileCard 
+             isProfilePage={true}
+             user={user}
+             activities={[
+                { name: 'Multimídia', icon: <FaCamera /> },
+                { name: 'Louvor', icon: <FaMusic /> },
+                { name: 'Redes Sociais', icon: <FaNetworkWired /> },
+                { name: 'Som', icon: <FaVolumeUp /> },
+                { name: 'Live', icon: <FaBroadcastTower /> },
+             ]}
+          />
         </aside>
 
         {/* Center Column - Profile Details */}
