@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import { MemberProfileCard } from '../components/MemberProfileCard/MemberProfileCard';
 import { MyScales } from '../components/MyScales/MyScales';
 import { AvailableScales } from '../components/AvailableScales/AvailableScales';
+import { CreatePost } from '../components/CreatePost/CreatePost';
 
 interface Verse {
   bookName: string;
@@ -55,10 +56,10 @@ export const AreaMembro = () => {
         <aside className="lg:col-span-3 space-y-6">
           <MemberProfileCard user={user} />
 
-          <MyScales scales={user?.membro?.escalas || []} onUpdate={handleUpdate} />
+          <MyScales key={`my-scales-${refreshTrigger}`} scales={user?.membro?.escalas || []} onUpdate={handleUpdate} />
           
           {/* Pass handleUpdate to refresh everything when user joins a scale */}
-          <AvailableScales key={refreshTrigger} onUpdate={handleUpdate} />
+          <AvailableScales key={`available-scales-${refreshTrigger}`} onUpdate={handleUpdate} />
         </aside>
 
         {/* Coluna Central - Conteúdo Principal */}
@@ -91,6 +92,7 @@ export const AreaMembro = () => {
 
           {/* Feed / Comunicação */}
           <div className="space-y-4">
+             <CreatePost onPostCreated={handleUpdate} />
              <PostList posts={posts} />
           </div>
         </section>

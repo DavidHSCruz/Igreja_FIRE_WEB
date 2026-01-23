@@ -1,9 +1,11 @@
-import { FaUser, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { FaUser, FaChevronLeft, FaChevronRight, FaPen } from "react-icons/fa";
 import { Link } from "react-router-dom";
-import React, { useState } from "react";
-import { User } from "../../contexts/AuthContext";
+import React, { useEffect, useState } from "react";
+import { useAuth, User } from "../../contexts/AuthContext";
+import { UserAvatar } from "../UserAvatar/UserAvatar";
 
 import { ActivityItem } from "./ActivityItem";
+import { api } from "../../services/api";
 
 export interface Activity {
   name: string;
@@ -28,7 +30,39 @@ export const MemberProfileCard: React.FC<MemberProfileCardProps> = ({
   const memberMinisterios = user?.membro?.ministerios || [];
   const memberAreas = user?.membro?.areas || [];
 
+  const { user: loggedUser, updateLocalUser } = useAuth();
+
   const [currentView, setCurrentView] = useState<"Áreas" | "Ministérios" | "Cursos">("Áreas");
+  const [headerColor, setHeaderColor] = useState(user?.membro?.color || "#D63031"); // Default red if no color
+
+  useEffect(() => {
+    setHeaderColor(user?.membro?.color || "#D63031");
+  }, [user]);
+
+  const handleColorChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newColor = e.target.value;
+    setHeaderColor(newColor);
+
+    if (user?.membro?.id && loggedUser) {
+        // Atualização otimista local para refletir a mudança imediatamente
+        if (updateLocalUser) {
+             const updatedUser = {
+                 ...loggedUser,
+                 membro: {
+                     ...loggedUser.membro!,
+                     color: newColor
+                 }
+             };
+             updateLocalUser(updatedUser);
+        }
+
+        try {
+            await api.patch(`/membros/${user.membro.id}`, { color: newColor });
+        } catch (error) {
+            console.error("Failed to update color", error);
+        }
+    }
+  };
 
   const computedActivities: Activity[] = [
     ...memberMinisterios.map((m) => ({
@@ -91,10 +125,37 @@ export const MemberProfileCard: React.FC<MemberProfileCardProps> = ({
 
   return (
     <div className="bg-[#161616] rounded-xl flex flex-col items-center text-center overflow-hidden border border-white/5">
-      {/* Cabeçalho Vermelho */}
-      <div className="w-full h-24 bg-secondary relative">
-        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-20 h-20 rounded-full bg-white flex items-center justify-center border-4 border-[#161616]">
-          <FaUser className="text-4xl text-black" />
+      {/* Cabeçalho com cor dinâmica */}
+      <div 
+        className="w-full h-24 relative transition-colors duration-300"
+        style={{ backgroundColor: headerColor }}
+      >
+        {isProfilePage && isMember && loggedUser?.id === user?.id && (
+            <div className="absolute top-2 right-2 z-10">
+                <label className="cursor-pointer bg-black/40 hover:bg-black/60 p-2 rounded-full transition-colors flex items-center justify-center backdrop-blur-sm group">
+                    <FaPen className="text-white/80 group-hover:text-white text-xs" />
+                    <input 
+                        type="color" 
+                        value={headerColor}
+                        onChange={handleColorChange}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    />
+                </label>
+            </div>
+        )}
+
+        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2">
+          <UserAvatar 
+            user={user} 
+            size="w-20 h-20" 
+            iconSize="text-4xl"
+            editable={!!(isProfilePage && isMember && loggedUser?.id === user?.id)}
+            onUploadSuccess={(newUrl) => {
+                if (loggedUser && loggedUser.id === user?.id && updateLocalUser) {
+                    updateLocalUser({ ...loggedUser, avatarUrl: newUrl });
+                }
+            }}
+          />
         </div>
       </div>
 

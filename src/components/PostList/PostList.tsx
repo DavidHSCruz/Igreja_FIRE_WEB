@@ -1,5 +1,6 @@
-import { FaUser, FaRegClock } from "react-icons/fa";
+import { FaRegClock } from "react-icons/fa";
 import { BsChatSquareQuoteFill } from "react-icons/bs";
+import { UserAvatar } from "../UserAvatar/UserAvatar";
 
 export interface Post {
   id: string;
@@ -7,6 +8,7 @@ export interface Post {
   content: string;
   createdAt: string;
   author: {
+    avatarUrl?: string;
     membro?: {
       nome: string;
     }
@@ -26,9 +28,12 @@ export const PostList = ({ posts, emptyMessage = "Nenhum post disponível no mom
         <div key={post.id} className="bg-[#161616] rounded-xl p-6 border border-white/5 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
-                <FaUser className="text-black text-xl" />
-              </div>
+              <UserAvatar 
+                user={post.author} 
+                size="w-10 h-10" 
+                iconSize="text-xl" 
+                hasBorder={false}
+              />
               <div>
                 <h4 className="font-bold text-white text-sm">{post.title}</h4>
                 <p className="text-[10px] text-gray-500 flex items-center gap-1">

@@ -5,17 +5,22 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   FaArrowLeft,
   FaSearch,
-  FaUser,
   FaPlus,
   FaTimes,
 } from 'react-icons/fa';
 import { PostList } from '../components/PostList/PostList';
 import { ScalesCarousel } from '../components/ScalesCarousel/ScalesCarousel';
+import { CreatePost } from '../components/CreatePost/CreatePost';
+import { UserAvatar } from '../components/UserAvatar/UserAvatar';
 
 interface Member {
   id: string;
   nome: string;
   atuacoes: Atuacao[];
+  user?: {
+    avatarUrl?: string;
+  };
+  color?: string;
 }
 
 interface Atuacao {
@@ -37,6 +42,7 @@ interface Post {
   content: string;
   createdAt: string;
   author: {
+    avatarUrl?: string;
     membro: {
       nome: string;
     };
@@ -47,10 +53,15 @@ interface Scale {
   id: string;
   data: string;
   evento: string;
+  local?: string;
   voluntarios: {
     membro: {
       id: string;
       nome: string;
+      user?: {
+        avatarUrl?: string;
+      };
+      color?: string;
     };
     status: 'PENDENTE' | 'CONFIRMADO' | 'RECUSADO';
   }[];
@@ -89,6 +100,15 @@ export const AreaMinisterioPage = () => {
   const isLeader = user?.systemRole === 'ADMIN' || user?.systemRole === 'PASTOR' || 
       (type === 'area' && user?.membro?.areas?.some(a => a.id === id && a.papel === 'LIDER')) ||
       (type === 'ministerio' && user?.membro?.ministerios?.some(m => m.id === id && m.papel === 'LIDER'));
+
+  const fetchPosts = async () => {
+    try {
+        const response = await api.get(`/posts?${type === 'area' ? 'areaId' : 'ministerioId'}=${id}`);
+        setPosts(response.data);
+    } catch (error) {
+        console.error("Failed to fetch posts", error);
+    }
+  };
 
   const openAddMemberModal = async () => {
     setIsAddMemberModalOpen(true);
@@ -202,6 +222,7 @@ export const AreaMinisterioPage = () => {
           id: scale.id,
           evento: scale.evento,
           data: scale.data,
+          local: scale.local,
           items: [],
         };
       }
@@ -215,7 +236,9 @@ export const AreaMinisterioPage = () => {
             scaleId: scale.id,
             status: vol.status,
             membroId: vol.membro.id,
-            isCurrentUser: user?.membro?.id === vol.membro.id
+            isCurrentUser: user?.membro?.id === vol.membro.id,
+            color: vol.membro.color,
+            avatarUrl: vol.membro.user?.avatarUrl
           });
         });
       } else {
@@ -228,7 +251,7 @@ export const AreaMinisterioPage = () => {
       }
     });
     return acc;
-  }, {} as Record<string, { id: string; evento: string; data: string; items: { name: string; role: string; scaleId?: string; status?: string; membroId?: string; isCurrentUser?: boolean }[] }>);
+  }, {} as Record<string, { id: string; evento: string; data: string; local?: string; items: { name: string; role: string; scaleId?: string; status?: string; membroId?: string; isCurrentUser?: boolean; color?: string; avatarUrl?: string }[] }>);
 
   const finalScales = Object.values(groupedScales).map((group) => {
     // Merge roles for the same person
@@ -238,7 +261,9 @@ export const AreaMinisterioPage = () => {
         scaleIds: Set<string>, 
         status?: string, 
         membroId?: string, 
-        isCurrentUser?: boolean 
+        isCurrentUser?: boolean,
+        color?: string,
+        avatarUrl?: string
     }>();
     
     group.items.forEach((item) => {
@@ -260,7 +285,9 @@ export const AreaMinisterioPage = () => {
              scaleIds: new Set(),
              status: item.status,
              membroId: item.membroId,
-             isCurrentUser: item.isCurrentUser
+             isCurrentUser: item.isCurrentUser,
+             color: item.color,
+             avatarUrl: item.avatarUrl
          });
        }
        personMap.get(key)!.roles.add(item.role); 
@@ -281,7 +308,9 @@ export const AreaMinisterioPage = () => {
             scaleId,
             status: data.status as any,
             membroId: data.membroId,
-            isCurrentUser: data.isCurrentUser
+            isCurrentUser: data.isCurrentUser,
+            color: data.color,
+            avatarUrl: data.avatarUrl
         };
       },
     );
@@ -338,63 +367,98 @@ export const AreaMinisterioPage = () => {
           </button>
         </div>
 
-        <aside className="lg:col-span-3">
-          <div className="bg-[#161616] rounded-xl overflow-hidden border border-white/5 flex flex-col h-full">
-            <div className="bg-[#ff3b3f] px-5 py-4">
-              <span className="text-xs font-semibold uppercase tracking-wide">
-                {type === 'area' ? 'Área de Atuação' : 'Ministério'}
-              </span>
-              <h1 className="text-lg font-bold leading-tight mt-1">{data.name}</h1>
-            </div>
-
-            <div className="px-6 py-5 flex-1 flex flex-col">
-              <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/10">
-                <h2 className="text-sm text-gray-200">
-                  Equipe
-                </h2>
-                {isLeader && (
-                  <button onClick={openAddMemberModal} className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded flex items-center gap-1 transition-colors">
-                    <FaPlus /> Add
-                  </button>
-                )}
+        <div className="lg:col-span-3 flex flex-col gap-6">
+          <aside className="h-max">
+            <div className="bg-[#161616] rounded-xl overflow-hidden border border-white/5 flex flex-col h-full">
+              <div className="bg-[#ff3b3f] px-5 py-4">
+                <span className="text-xs font-semibold uppercase tracking-wide">
+                  {type === 'area' ? 'Área de Atuação' : 'Ministério'}
+                </span>
+                <h1 className="text-lg font-bold leading-tight mt-1">{data.name}</h1>
               </div>
 
-              <div className="space-y-3 flex-1">
-                {membros.length > 0 ? (
-                  membros.map((membro, index) => {
-                    const colorClass =
-                      index % 2 === 0 ? 'bg-[#F3A920]' : 'bg-[#9B59B6]';
+              <div className="px-6 py-5 flex-1 flex flex-col">
+                <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/10">
+                  <h2 className="text-sm text-gray-200">
+                    Equipe
+                  </h2>
+                  {isLeader && (
+                    <button onClick={openAddMemberModal} className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded flex items-center gap-1 transition-colors">
+                      <FaPlus /> Add
+                    </button>
+                  )}
+                </div>
 
-                    return (
-                      <div
-                        key={membro.id}
-                        className={`${colorClass} rounded-full px-4 py-2 flex items-center justify-between text-white text-sm`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-white/90 flex items-center justify-center text-black text-xs">
-                            <FaUser />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-semibold leading-none">{membro.nome}</span>
-                            <span className="text-[10px] opacity-80 mt-1">{membro.atuacoes.map(a => `${a.papel}, ${a.atividade.name}`)}</span>
+                <div className="space-y-3 flex-1">
+                  {membros.length > 0 ? (
+                    membros.map((membro, index) => {
+                      const colorClass =
+                        index % 2 === 0 ? 'bg-[#F3A920]' : 'bg-[#9B59B6]';
+
+                      return (
+                        <div
+                          key={membro.id}
+                          className={`${colorClass} rounded-full px-4 py-2 flex items-center justify-between text-white text-sm`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <UserAvatar 
+                              user={{ 
+                                avatarUrl: membro.user?.avatarUrl, 
+                                membro: { nome: membro.nome } 
+                              }}
+                              size="w-7 h-7"
+                              iconSize="text-xs"
+                              hasBorder={false}
+                              className="bg-white/90"
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-semibold leading-none">{membro.nome}</span>
+                              <span className="text-[10px] opacity-80 mt-1">{membro.atuacoes.map(a => `${a.papel}, ${a.atividade.name}`)}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="text-gray-500 text-sm italic text-center">
-                    Nenhum membro vinculado.
-                  </p>
-                )}
-              </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-gray-500 text-sm italic text-center">
+                      Nenhum membro vinculado.
+                    </p>
+                  )}
+                </div>
 
-              <div className="mt-6 pt-3 border-t border-white/10 text-center text-xs text-gray-400">
-                Ver mais...
+                <div className="mt-6 pt-3 border-t border-white/10 text-center text-xs text-gray-400">
+                  Ver mais...
+                </div>
               </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+
+          <aside className="space-y-6">
+            <section className="bg-[#161616] rounded-xl p-6 border border-white/5">
+              <div className="mb-4">
+                <h3 className="text-sm text-gray-300 pb-2 border-b border-white/10">
+                  Planos de leitura
+                </h3>
+              </div>
+
+              <div className="space-y-3">
+                {[1, 2, 3].map((_, i) => (
+                  <div
+                    key={i}
+                    className="bg-[#252525] p-3 rounded-sm hover:bg-[#303030] transition-colors cursor-pointer"
+                  >
+                    <h4 className="font-bold text-xs text-gray-300 mb-1 border-b border-white/10 pb-1 inline-block">
+                      Bíblia em 365 dias
+                    </h4>
+                    <p className="text-[10px] text-gray-500 mt-1">
+                      Pequena descrição à respeito do plano de leitura...
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </aside>
+        </div>
 
         <section className="lg:col-span-9 space-y-9">
           <div className="bg-[#161616] rounded-xl p-4 flex items-center gap-3 border border-white/5 h-14">
@@ -405,34 +469,16 @@ export const AreaMinisterioPage = () => {
             <ScalesCarousel scales={finalScales} onJoin={handleJoinScale} onConfirm={handleConfirmScale} />
           </section>
 
+          <CreatePost 
+            onPostCreated={fetchPosts} 
+            defaultType={type as "area" | "ministerio"} 
+            defaultTargetId={id} 
+            fixedContext={true}
+            contextName={data?.name}
+          />
+
           <PostList posts={posts} emptyMessage="Nenhum aviso publicado." />
         </section>
-
-        <aside className="lg:col-span-3 space-y-6">
-          <section className="bg-[#161616] rounded-xl p-6 border border-white/5">
-            <div className="mb-4">
-              <h3 className="text-sm text-gray-300 pb-2 border-b border-white/10">
-                Planos de leitura
-              </h3>
-            </div>
-
-            <div className="space-y-3">
-              {[1, 2, 3].map((_, i) => (
-                <div
-                  key={i}
-                  className="bg-[#252525] p-3 rounded-sm hover:bg-[#303030] transition-colors cursor-pointer"
-                >
-                  <h4 className="font-bold text-xs text-gray-300 mb-1 border-b border-white/10 pb-1 inline-block">
-                    Bíblia em 365 dias
-                  </h4>
-                  <p className="text-[10px] text-gray-500 mt-1">
-                    Pequena descrição à respeito do plano de leitura...
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
-        </aside>
       </main>
 
       {isAddMemberModalOpen && (

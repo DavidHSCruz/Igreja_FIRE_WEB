@@ -39,11 +39,13 @@ export interface User {
   id: string;
   email: string;
   systemRole: string;
+  avatarUrl?: string;
   membro?: {
     id: string;
     nome: string;
     email: string;
     dataNascimento: string;
+    color?: string;
     ministerios?: Ministerio[];
     areas?: Area[];
     escalas?: Escala[];
@@ -56,6 +58,7 @@ interface AuthContextData {
   login: (token: string, user: User) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  updateLocalUser: (updatedUser: User) => void;
   loading: boolean;
 }
 
@@ -82,10 +85,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   }, []);
 
+  const updateLocalUser = (updatedUser: User) => {
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  };
+
   const login = (token: string, userData: User) => {
     localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
+    updateLocalUser(userData);
   };
 
   const logout = () => {
@@ -104,15 +111,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const response = await api.get(`/users/${currentUser.id}/complete-profile`);
       const updatedUser = response.data;
       
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      setUser(updatedUser);
+      updateLocalUser(updatedUser);
     } catch (error) {
       console.error("Error refreshing user:", error);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout, refreshUser, loading }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout, refreshUser, updateLocalUser, loading }}>
       {children}
     </AuthContext.Provider>
   );
