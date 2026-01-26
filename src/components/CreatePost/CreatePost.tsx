@@ -74,10 +74,12 @@ export const CreatePost = ({
       const payload = {
         title: generatedTitle,
         content,
+        // authorId: user?.membro?.id,
+        // allowedRoles: user.systemRole,
         areaId: type === 'area' ? targetId : undefined,
         ministerioId: type === 'ministerio' ? targetId : undefined
       };
-
+      console.log(payload);
       await api.post("/posts", payload);
       
       // Limpar formulário e fechar modal

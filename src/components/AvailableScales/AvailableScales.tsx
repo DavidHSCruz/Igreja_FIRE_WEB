@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { FaCalendarPlus, FaCheck } from "react-icons/fa";
 import { api } from "../../services/api";
 import { useAuth } from "../../contexts/AuthContext";
-import { ActivityItem } from "../MemberProfileCard/ActivityItem";
+import { MyScaleCard } from "../MyScaleCard/MyScaleCard";
 
 interface AvailableScale {
   id: string;
@@ -78,10 +78,11 @@ export const AvailableScales = ({ onUpdate }: AvailableScalesProps) => {
       <div className="space-y-3">
           {scales.map((scale) => (
             <div key={scale.id} className="relative group">
-                <ActivityItem
+                <MyScaleCard
                   name={scale.evento}
                   details={`${new Date(scale.data).toLocaleDateString('pt-BR')} - ${scale.atividade.name}`}
                   icon={<FaCalendarPlus className="text-sm" />}
+                  status="DISPONIVEL"
                 />
                 <div className="mt-2 flex gap-2 justify-end">
                     <button 

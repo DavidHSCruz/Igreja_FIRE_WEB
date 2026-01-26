@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import {
   FaUser,
@@ -17,6 +17,41 @@ import {
 } from "react-icons/fa";
 import { useAuth } from "../contexts/AuthContext";
 import { MemberProfileCard } from "../components/MemberProfileCard/MemberProfileCard";
+import { ProfileInput } from "../components/ProfileInput/ProfileInput";
+import { CourseCard } from "../components/CourseCard/CourseCard";
+import { ReadingPlanCard } from "../components/ReadingPlanCard/ReadingPlanCard";
+import { api } from "../services/api";
+import { 
+  validateCPF, 
+  validateEmail, 
+  validatePhone, 
+  validateDate, 
+  validateRequired,
+  validateAddressSection
+} from "../utils/validations";
+
+interface Evento {
+  id: string;
+  nome: string;
+  descricao: string;
+  dataInicio: string;
+  local: string;
+}
+
+interface Escala {
+  id: string;
+  atividade: {
+    name: string;
+  };
+  eventoRel?: {
+    id: string;
+  };
+  data: string;
+  voluntarios: {
+    membro: { id: string };
+    status: string;
+  }[];
+}
 
 export const Profile = () => {
   const { user } = useAuth();
@@ -29,6 +64,9 @@ export const Profile = () => {
 
   const [activeTab, setActiveTab] = useState<"dados" | "endereco">("dados");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // documentType removed as we only use CPF now
+  const [documentValue, setDocumentValue] = useState("");
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   // State for form fields (initialized with user data or empty strings)
   const [formData, setFormData] = useState({
@@ -41,26 +79,134 @@ export const Profile = () => {
     cidade: "Cidade",
     estado: "UF",
     cep: "00000-000",
-    rg: "00.000.000-0",
+    // rg removed
     cpf: "000.000.000-00",
   });
 
   // State for editing (temporary)
   const [editFormData, setEditFormData] = useState(formData);
 
+  // State for agenda
+  const [events, setEvents] = useState<Evento[]>([]);
+  const [userScales, setUserScales] = useState<Escala[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [eventsRes, scalesRes, memberRes] = await Promise.all([
+          api.get<Evento[]>('/eventos'),
+          api.get<Escala[]>(`/escalas/membro/${user?.membro?.id}`),
+          api.get<any>(`/membros/${user?.membro?.id}`)
+        ]);
+        
+        // Filter future events and sort by date
+        const futureEvents = eventsRes.data
+          .filter(e => new Date(e.dataInicio) >= new Date())
+          .sort((a, b) => new Date(a.dataInicio).getTime() - new Date(b.dataInicio).getTime());
+          
+        setEvents(futureEvents);
+        setUserScales(scalesRes.data);
+
+        // Update formData with fetched member data
+        const member = memberRes.data;
+        const newFormData = {
+          nome: member.nome || "",
+          email: member.email || "",
+          telefone: member.telefone || "",
+          dataNascimento: member.dataNascimento ? member.dataNascimento.split('T')[0] : "",
+          endereco: member.endereco || "",
+          bairro: member.bairro || "",
+          cidade: member.cidade || "",
+          estado: member.estado || "",
+          cep: member.cep || "",
+          // rg removed
+          cpf: member.cpf || "",
+        };
+        setFormData(newFormData);
+        setEditFormData(newFormData);
+
+      } catch (error) {
+        console.error("Error fetching agenda:", error);
+      }
+    };
+
+    if (user?.membro?.id) {
+      fetchData();
+    }
+  }, [user?.membro?.id]);
+
   const handleOpenModal = () => {
     setEditFormData({ ...formData });
+    setErrors({});
+    setDocumentValue(formData.cpf || "");
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
-    setFormData(editFormData);
-    setIsModalOpen(false);
+  const handleSave = async () => {
+    const newErrors: { [key: string]: string } = {};
+
+    if (!validateRequired(editFormData.nome)) newErrors.nome = "Nome é obrigatório";
+    
+    if (!validateRequired(editFormData.email)) {
+      newErrors.email = "E-mail é obrigatório";
+    } else if (!validateEmail(editFormData.email)) {
+      newErrors.email = "E-mail inválido";
+    }
+
+    if (editFormData.telefone && !validatePhone(editFormData.telefone)) {
+      newErrors.telefone = "Telefone inválido";
+    }
+
+    if (editFormData.dataNascimento && !validateDate(editFormData.dataNascimento)) {
+      newErrors.dataNascimento = "Data de nascimento inválida";
+    }
+
+    // Address Validations
+    const addressErrors = validateAddressSection(editFormData);
+    Object.assign(newErrors, addressErrors);
+    
+    // Validate Document (CPF only)
+    if (!validateCPF(documentValue)) {
+      newErrors.document = "CPF inválido";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    const dataToSend = {
+      ...editFormData,
+      cpf: documentValue,
+    };
+
+    try {
+      await api.patch(`/membros/${user?.membro?.id}`, dataToSend);
+      setFormData(dataToSend);
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      alert("Erro ao atualizar perfil.");
+    }
+  };
+
+  const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    // Always apply CPF mask
+    value = value.replace(/\D/g, "")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})/, "$1-$2")
+      .replace(/(-\d{2})\d+?$/, "$1");
+      
+    setDocumentValue(value);
+    if (errors.document) setErrors(prev => ({ ...prev, document: "" }));
   };
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setEditFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: "" }));
   };
 
   return (
@@ -109,180 +255,88 @@ export const Profile = () => {
             <div className="min-h-[300px]">
               {activeTab === "dados" ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fadeIn">
-                  <div className="space-y-2">
-                    <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                      Nome Completo
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <FaUser className="text-gray-500 text-xs" />
-                      </div>
-                      <input
-                        type="text"
-                        value={formData.nome}
-                        readOnly
-                        disabled
-                        className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 pl-10 pr-4 text-sm text-white focus:outline-none opacity-50 cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
+                  <ProfileInput
+                    label="Nome Completo"
+                    icon={<FaUser className="text-gray-500 text-xs" />}
+                    type="text"
+                    value={formData.nome}
+                    readOnly
+                    disabled
+                  />
 
-                  <div className="space-y-2">
-                    <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                      E-mail
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <FaEnvelope className="text-gray-500 text-xs" />
-                      </div>
-                      <input
-                        type="email"
-                        value={formData.email}
-                        readOnly
-                        disabled
-                        className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 pl-10 pr-4 text-sm text-white focus:outline-none opacity-50 cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
+                  <ProfileInput
+                    label="E-mail"
+                    icon={<FaEnvelope className="text-gray-500 text-xs" />}
+                    type="email"
+                    value={formData.email}
+                    readOnly
+                    disabled
+                  />
 
-                  <div className="space-y-2">
-                    <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                      Telefone / WhatsApp
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <FaPhone className="text-gray-500 text-xs" />
-                      </div>
-                      <input
-                        type="text"
-                        value={formData.telefone}
-                        readOnly
-                        disabled
-                        className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 pl-10 pr-4 text-sm text-white focus:outline-none opacity-50 cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
+                  <ProfileInput
+                    label="Telefone / WhatsApp"
+                    icon={<FaPhone className="text-gray-500 text-xs" />}
+                    type="text"
+                    value={formData.telefone}
+                    readOnly
+                    disabled
+                  />
 
-                  <div className="space-y-2">
-                    <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                      Data de Nascimento
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <FaCalendarAlt className="text-gray-500 text-xs" />
-                      </div>
-                      <input
-                        type="date"
-                        value={formData.dataNascimento}
-                        readOnly
-                        disabled
-                        className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 pl-10 pr-4 text-sm text-white focus:outline-none opacity-50 cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
+                  <ProfileInput
+                    label="Data de Nascimento"
+                    icon={<FaCalendarAlt className="text-gray-500 text-xs" />}
+                    type="date"
+                    value={formData.dataNascimento}
+                    readOnly
+                    disabled
+                  />
 
-                  <div className="space-y-2">
-                    <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                      CPF
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <FaIdCard className="text-gray-500 text-xs" />
-                      </div>
-                      <input
-                        type="text"
-                        value={formData.cpf}
-                        readOnly
-                        disabled
-                        className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 pl-10 pr-4 text-sm text-white focus:outline-none opacity-50 cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                      RG
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <FaIdCard className="text-gray-500 text-xs" />
-                      </div>
-                      <input
-                        type="text"
-                        value={formData.rg}
-                        readOnly
-                        disabled
-                        className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 pl-10 pr-4 text-sm text-white focus:outline-none opacity-50 cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
+                  <ProfileInput
+                    label="Documento (CPF)"
+                    icon={<FaIdCard className="text-gray-500 text-xs" />}
+                    type="text"
+                    value={formData.cpf || ""}
+                    readOnly
+                    disabled
+                  />
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fadeIn">
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                      Logradouro
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.endereco}
-                      readOnly
-                      disabled
-                      className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 px-4 text-sm text-white focus:outline-none opacity-50 cursor-not-allowed"
-                    />
-                  </div>
+                  <ProfileInput
+                    label="Logradouro"
+                    value={formData.endereco}
+                    readOnly
+                    disabled
+                    className="md:col-span-2"
+                  />
 
-                  <div className="space-y-2">
-                    <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                      Bairro
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.bairro}
-                      readOnly
-                      disabled
-                      className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 px-4 text-sm text-white focus:outline-none opacity-50 cursor-not-allowed"
-                    />
-                  </div>
+                  <ProfileInput
+                    label="Bairro"
+                    value={formData.bairro}
+                    readOnly
+                    disabled
+                  />
 
-                  <div className="space-y-2">
-                    <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                      CEP
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.cep}
-                      readOnly
-                      disabled
-                      className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 px-4 text-sm text-white focus:outline-none opacity-50 cursor-not-allowed"
-                    />
-                  </div>
+                  <ProfileInput
+                    label="CEP"
+                    value={formData.cep}
+                    readOnly
+                    disabled
+                  />
 
-                  <div className="space-y-2">
-                    <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                      Cidade
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.cidade}
-                      readOnly
-                      disabled
-                      className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 px-4 text-sm text-white focus:outline-none opacity-50 cursor-not-allowed"
-                    />
-                  </div>
+                  <ProfileInput
+                    label="Cidade"
+                    value={formData.cidade}
+                    readOnly
+                    disabled
+                  />
 
-                  <div className="space-y-2">
-                    <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                      Estado
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.estado}
-                      readOnly
-                      disabled
-                      className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 px-4 text-sm text-white focus:outline-none opacity-50 cursor-not-allowed"
-                    />
-                  </div>
+                  <ProfileInput
+                    label="Estado"
+                    value={formData.estado}
+                    readOnly
+                    disabled
+                  />
                 </div>
               )}
             </div>
@@ -308,205 +362,132 @@ export const Profile = () => {
                   <div className="flex gap-6 mb-6 border-b border-white/10 pb-2">
                     <button
                       onClick={() => setActiveTab("dados")}
-                      className={`text-sm font-bold uppercase pb-2 transition-colors ${activeTab === "dados" ? "text-secondary border-b-2 border-secondary" : "text-gray-500 hover:text-white"}`}
+                      className={`text-sm font-bold uppercase pb-2 transition-colors relative ${activeTab === "dados" ? "text-secondary border-b-2 border-secondary" : "text-gray-500 hover:text-white"}`}
                     >
                       Dados Pessoais
+                      {(errors.nome || errors.email || errors.telefone || errors.dataNascimento || errors.document) && (
+                        <span className="absolute -top-1 -right-2 w-2 h-2 bg-red-500 rounded-full"></span>
+                      )}
                     </button>
                     <button
                       onClick={() => setActiveTab("endereco")}
-                      className={`text-sm font-bold uppercase pb-2 transition-colors ${activeTab === "endereco" ? "text-secondary border-b-2 border-secondary" : "text-gray-500 hover:text-white"}`}
+                      className={`text-sm font-bold uppercase pb-2 transition-colors relative ${activeTab === "endereco" ? "text-secondary border-b-2 border-secondary" : "text-gray-500 hover:text-white"}`}
                     >
                       Endereço
+                      {(errors.endereco || errors.bairro || errors.cep || errors.cidade || errors.estado) && (
+                        <span className="absolute -top-1 -right-2 w-2 h-2 bg-red-500 rounded-full"></span>
+                      )}
                     </button>
                   </div>
 
                   <form className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {activeTab === "dados" ? (
                       <>
-                        <div className="space-y-2">
-                          <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                            Nome Completo
-                          </label>
-                          <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <FaUser className="text-gray-500 text-xs" />
-                            </div>
-                            <input
-                              type="text"
-                              name="nome"
-                              value={editFormData.nome}
-                              onChange={handleEditChange}
-                              className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-secondary transition-colors"
-                              placeholder="Seu nome completo"
-                            />
-                          </div>
-                        </div>
+                        <ProfileInput
+                          label="Nome Completo"
+                          icon={<FaUser className="text-gray-500 text-xs" />}
+                          type="text"
+                          name="nome"
+                          value={editFormData.nome}
+                          onChange={handleEditChange}
+                          error={errors.nome}
+                          placeholder="Seu nome completo"
+                        />
 
-                        <div className="space-y-2">
-                          <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                            E-mail
-                          </label>
-                          <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <FaEnvelope className="text-gray-500 text-xs" />
-                            </div>
-                            <input
-                              type="email"
-                              name="email"
-                              value={editFormData.email}
-                              onChange={handleEditChange}
-                              className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-secondary transition-colors"
-                              placeholder="seu@email.com"
-                            />
-                          </div>
-                        </div>
+                        <ProfileInput
+                          label="E-mail"
+                          icon={<FaEnvelope className="text-gray-500 text-xs" />}
+                          type="email"
+                          name="email"
+                          value={editFormData.email}
+                          onChange={handleEditChange}
+                          error={errors.email}
+                          placeholder="seu@email.com"
+                        />
 
-                        <div className="space-y-2">
-                          <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                            Telefone / WhatsApp
-                          </label>
-                          <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <FaPhone className="text-gray-500 text-xs" />
-                            </div>
-                            <input
-                              type="text"
-                              name="telefone"
-                              value={editFormData.telefone}
-                              onChange={handleEditChange}
-                              className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-secondary transition-colors"
-                              placeholder="(00) 00000-0000"
-                            />
-                          </div>
-                        </div>
+                        <ProfileInput
+                          label="Telefone / WhatsApp"
+                          icon={<FaPhone className="text-gray-500 text-xs" />}
+                          type="text"
+                          name="telefone"
+                          value={editFormData.telefone}
+                          onChange={handleEditChange}
+                          error={errors.telefone}
+                          placeholder="(00) 00000-0000"
+                        />
 
-                        <div className="space-y-2">
-                          <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                            Data de Nascimento
-                          </label>
-                          <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <FaCalendarAlt className="text-gray-500 text-xs" />
-                            </div>
-                            <input
-                              type="date"
-                              name="dataNascimento"
-                              value={editFormData.dataNascimento}
-                              onChange={handleEditChange}
-                              className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-secondary transition-colors"
-                            />
-                          </div>
-                        </div>
+                        <ProfileInput
+                          label="Data de Nascimento"
+                          icon={<FaCalendarAlt className="text-gray-500 text-xs" />}
+                          type="date"
+                          name="dataNascimento"
+                          value={editFormData.dataNascimento}
+                          onChange={handleEditChange}
+                          error={errors.dataNascimento}
+                        />
 
-                        <div className="space-y-2">
-                          <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                            CPF
-                          </label>
-                          <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <FaIdCard className="text-gray-500 text-xs" />
-                            </div>
-                            <input
-                              type="text"
-                              name="cpf"
-                              value={editFormData.cpf}
-                              onChange={handleEditChange}
-                              className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-secondary transition-colors"
-                              placeholder="000.000.000-00"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                            RG
-                          </label>
-                          <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <FaIdCard className="text-gray-500 text-xs" />
-                            </div>
-                            <input
-                              type="text"
-                              name="rg"
-                              value={editFormData.rg}
-                              onChange={handleEditChange}
-                              className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-secondary transition-colors"
-                              placeholder="00.000.000-0"
-                            />
-                          </div>
-                        </div>
+                        <ProfileInput
+                          label="Documento (CPF)"
+                          icon={<FaIdCard className="text-gray-500 text-xs" />}
+                          type="text"
+                          value={documentValue}
+                          onChange={handleDocumentChange}
+                          error={errors.document}
+                          placeholder="000.000.000-00"
+                        />
                       </>
                     ) : (
                       <>
-                        <div className="space-y-2 md:col-span-2">
-                          <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                            Logradouro
-                          </label>
-                          <input
-                            type="text"
-                            name="endereco"
-                            value={editFormData.endereco}
-                            onChange={handleEditChange}
-                            className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 px-4 text-sm text-white focus:outline-none focus:border-secondary transition-colors"
-                            placeholder="Rua, Avenida, etc"
-                          />
-                        </div>
+                        <ProfileInput
+                          label="Logradouro"
+                          type="text"
+                          name="endereco"
+                          value={editFormData.endereco}
+                          onChange={handleEditChange}
+                          error={errors.endereco}
+                          className="md:col-span-2"
+                          placeholder="Rua, Número, Complemento"
+                        />
 
-                        <div className="space-y-2">
-                          <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                            Bairro
-                          </label>
-                          <input
-                            type="text"
-                            name="bairro"
-                            value={editFormData.bairro}
-                            onChange={handleEditChange}
-                            className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 px-4 text-sm text-white focus:outline-none focus:border-secondary transition-colors"
-                            placeholder="Bairro"
-                          />
-                        </div>
+                        <ProfileInput
+                          label="Bairro"
+                          type="text"
+                          name="bairro"
+                          value={editFormData.bairro}
+                          onChange={handleEditChange}
+                          error={errors.bairro}
+                          placeholder="Bairro"
+                        />
 
-                        <div className="space-y-2">
-                          <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                            CEP
-                          </label>
-                          <input
-                            type="text"
-                            name="cep"
-                            value={editFormData.cep}
-                            onChange={handleEditChange}
-                            className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 px-4 text-sm text-white focus:outline-none focus:border-secondary transition-colors"
-                            placeholder="00000-000"
-                          />
-                        </div>
+                        <ProfileInput
+                          label="CEP"
+                          type="text"
+                          name="cep"
+                          value={editFormData.cep}
+                          onChange={handleEditChange}
+                          error={errors.cep}
+                          placeholder="00000-000"
+                        />
 
-                        <div className="space-y-2">
-                          <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                            Cidade
-                          </label>
-                          <input
-                            type="text"
-                            name="cidade"
-                            value={editFormData.cidade}
-                            onChange={handleEditChange}
-                            className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 px-4 text-sm text-white focus:outline-none focus:border-secondary transition-colors"
-                            placeholder="Cidade"
-                          />
-                        </div>
+                        <ProfileInput
+                          label="Cidade"
+                          type="text"
+                          name="cidade"
+                          value={editFormData.cidade}
+                          onChange={handleEditChange}
+                          error={errors.cidade}
+                          placeholder="Cidade"
+                        />
 
-                        <div className="space-y-2">
-                          <label className="text-xs text-gray-400 font-bold uppercase ml-1">
-                            Estado
-                          </label>
-                          <input
-                            type="text"
-                            name="estado"
-                            value={editFormData.estado}
-                            onChange={handleEditChange}
-                            className="w-full bg-[#252525] border border-white/10 rounded-lg py-3 px-4 text-sm text-white focus:outline-none focus:border-secondary transition-colors"
-                            placeholder="UF"
-                          />
-                        </div>
+                        <ProfileInput
+                          label="Estado"
+                          type="text"
+                          name="estado"
+                          value={editFormData.estado}
+                          onChange={handleEditChange}
+                          error={errors.estado}
+                          placeholder="UF"
+                        />
                       </>
                     )}
                   </form>
@@ -544,24 +525,16 @@ export const Profile = () => {
                   Iniciais
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-[#252525] p-4 rounded-lg border-l-4 border-secondary flex justify-between items-center">
-                    <div>
-                      <h4 className="font-bold text-white">START</h4>
-                      <p className="text-xs text-gray-400">Fundamentos da fé</p>
-                    </div>
-                    <span className="px-2 py-1 bg-green-500/20 text-green-500 text-[10px] font-bold rounded uppercase">
-                      Concluído
-                    </span>
-                  </div>
-                  <div className="bg-[#252525] p-4 rounded-lg border-l-4 border-secondary flex justify-between items-center">
-                    <div>
-                      <h4 className="font-bold text-white">DNA FIRE</h4>
-                      <p className="text-xs text-gray-400">Cultura da igreja</p>
-                    </div>
-                    <span className="px-2 py-1 bg-yellow-500/20 text-yellow-500 text-[10px] font-bold rounded uppercase">
-                      Em andamento
-                    </span>
-                  </div>
+                  <CourseCard
+                    title="START"
+                    subtitle="Fundamentos da fé"
+                    status="concluido"
+                  />
+                  <CourseCard
+                    title="DNA FIRE"
+                    subtitle="Cultura da igreja"
+                    status="em_andamento"
+                  />
                 </div>
               </div>
 
@@ -570,17 +543,12 @@ export const Profile = () => {
                   Liderança
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-[#252525] p-4 rounded-lg border-l-4 border-blue-500 flex justify-between items-center opacity-75">
-                    <div>
-                      <h4 className="font-bold text-white">
-                        Liderança Exponencial
-                      </h4>
-                      <p className="text-xs text-gray-400">Módulo 1</p>
-                    </div>
-                    <span className="px-2 py-1 bg-gray-700 text-gray-400 text-[10px] font-bold rounded uppercase">
-                      Não iniciado
-                    </span>
-                  </div>
+                  <CourseCard
+                    title="Liderança Exponencial"
+                    subtitle="Módulo 1"
+                    status="nao_iniciado"
+                    borderClass="border-blue-500"
+                  />
                 </div>
               </div>
 
@@ -603,41 +571,23 @@ export const Profile = () => {
               </h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-[#252525] p-5 rounded-lg border border-white/5 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-secondary/10 rounded-bl-full -mr-4 -mt-4 transition-all group-hover:bg-secondary/20"></div>
-                <h3 className="font-bold text-white relative z-10">
-                  Bíblia em 1 Ano
-                </h3>
-                <p className="text-xs text-gray-400 mb-4 relative z-10">
-                  Plano anual completo
-                </p>
+              <ReadingPlanCard
+                title="Bíblia em 1 Ano"
+                subtitle="Plano anual completo"
+                progress={45}
+                currentDay={164}
+                totalDays={365}
+              />
 
-                <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden mb-2 relative z-10">
-                  <div className="bg-secondary h-full w-[45%]"></div>
-                </div>
-                <div className="flex justify-between text-[10px] text-gray-400 font-bold uppercase relative z-10">
-                  <span>45% Concluído</span>
-                  <span>Dia 164/365</span>
-                </div>
-              </div>
-
-              <div className="bg-[#252525] p-5 rounded-lg border border-white/5 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-bl-full -mr-4 -mt-4 transition-all group-hover:bg-blue-500/20"></div>
-                <h3 className="font-bold text-white relative z-10">
-                  Novo Testamento
-                </h3>
-                <p className="text-xs text-gray-400 mb-4 relative z-10">
-                  Leitura devocional
-                </p>
-
-                <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden mb-2 relative z-10">
-                  <div className="bg-blue-500 h-full w-[12%]"></div>
-                </div>
-                <div className="flex justify-between text-[10px] text-gray-400 font-bold uppercase relative z-10">
-                  <span>12% Concluído</span>
-                  <span>Dia 10/90</span>
-                </div>
-              </div>
+              <ReadingPlanCard
+                title="Novo Testamento"
+                subtitle="Leitura devocional"
+                progress={12}
+                currentDay={10}
+                totalDays={90}
+                barColorClass="bg-blue-500"
+                circleColorClass="bg-blue-500/10 group-hover:bg-blue-500/20"
+              />
             </div>
           </div>
 
@@ -650,87 +600,64 @@ export const Profile = () => {
             </div>
 
             <div className="space-y-4">
-              <div className="flex gap-4 items-start">
-                <div className="bg-[#252525] w-14 h-14 rounded-lg flex flex-col items-center justify-center border border-white/5 shrink-0">
-                  <span className="text-[10px] uppercase text-gray-400 font-bold">
-                    JAN
-                  </span>
-                  <span className="text-xl font-bold text-white">28</span>
-                </div>
-                <div className="flex-1 bg-[#252525] p-4 rounded-lg border-l-4 border-secondary">
-                  <div className="flex justify-between items-start mb-1">
-                    <h4 className="font-bold text-white">Escala Multimídia</h4>
-                    <span className="bg-secondary/20 text-secondary text-[10px] font-bold px-2 py-0.5 rounded uppercase">
-                      Confirmado
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-300 mb-2">
-                    Culto de Celebração
-                  </p>
-                  <div className="flex items-center gap-3 text-xs text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <FaClock /> 18:30
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <FaMapMarkerAlt /> Templo Principal
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-4 items-start">
-                <div className="bg-[#252525] w-14 h-14 rounded-lg flex flex-col items-center justify-center border border-white/5 shrink-0">
-                  <span className="text-[10px] uppercase text-gray-400 font-bold">
-                    FEV
-                  </span>
-                  <span className="text-xl font-bold text-white">02</span>
-                </div>
-                <div className="flex-1 bg-[#252525] p-4 rounded-lg border-l-4 border-blue-500">
-                  <div className="flex justify-between items-start mb-1">
-                    <h4 className="font-bold text-white">Escala Louvor</h4>
-                    <span className="bg-blue-500/20 text-blue-500 text-[10px] font-bold px-2 py-0.5 rounded uppercase">
-                      Confirmado
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-300 mb-2">
-                    Culto de Doutrina
-                  </p>
-                  <div className="flex items-center gap-3 text-xs text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <FaClock /> 19:00
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <FaMapMarkerAlt /> Templo Principal
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-4 items-start">
-                <div className="bg-[#252525] w-14 h-14 rounded-lg flex flex-col items-center justify-center border border-white/5 shrink-0">
-                  <span className="text-[10px] uppercase text-gray-400 font-bold">
-                    FEV
-                  </span>
-                  <span className="text-xl font-bold text-white">10</span>
-                </div>
-                <div className="flex-1 bg-[#252525] p-4 rounded-lg border-l-4 border-purple-500">
-                  <div className="flex justify-between items-start mb-1">
-                    <h4 className="font-bold text-white">Conferência Fire</h4>
-                    <span className="bg-purple-500/20 text-purple-500 text-[10px] font-bold px-2 py-0.5 rounded uppercase">
-                      Evento
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-300 mb-2">Evento Especial</p>
-                  <div className="flex items-center gap-3 text-xs text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <FaClock /> 19:30
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <FaMapMarkerAlt /> Templo Principal
-                    </span>
-                  </div>
-                </div>
-              </div>
+              {events.length === 0 ? (
+                 <p className="text-gray-500 text-sm">Nenhum evento agendado.</p>
+              ) : (
+                events.map((event) => {
+                  const eventDate = new Date(event.dataInicio);
+                  const month = eventDate.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
+                  const day = eventDate.getDate().toString().padStart(2, '0');
+                  const time = eventDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                  
+                  // Check if user has a scale for this event
+                  const scale = userScales.find(s => 
+                    (s.eventoRel?.id === event.id)
+                  );
+          
+                  return (
+                    <div key={event.id} className="flex gap-4 items-start">
+                      <div className="bg-[#252525] w-14 h-14 rounded-lg flex flex-col items-center justify-center border border-white/5 shrink-0">
+                        <span className="text-[10px] uppercase text-gray-400 font-bold">
+                          {month}
+                        </span>
+                        <span className="text-xl font-bold text-white">{day}</span>
+                      </div>
+                      <div className={`flex-1 bg-[#252525] p-4 rounded-lg border-l-4 ${scale ? 'border-secondary' : 'border-purple-500'}`}>
+                        <div className="flex justify-between items-start mb-1">
+                          <h4 className="font-bold text-white">
+                            {event.nome}
+                          </h4>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                            scale 
+                              ? 'bg-secondary/20 text-secondary' 
+                              : 'bg-purple-500/20 text-purple-500'
+                          }`}>
+                            {scale ? 'Escalado' : 'Evento'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-300 mb-2">
+                          {scale ? (
+                            <span className="flex items-center gap-1">
+                              <span className="text-gray-400">Atividade:</span>
+                              <span className="text-secondary font-bold uppercase">{scale.atividade.name}</span>
+                            </span>
+                          ) : (
+                            event.descricao || "Evento da Igreja"
+                          )}
+                        </p>
+                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <FaClock /> {time}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <FaMapMarkerAlt /> {event.local || "Templo Principal"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </section>

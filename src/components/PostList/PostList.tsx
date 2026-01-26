@@ -1,6 +1,6 @@
-import { FaRegClock } from "react-icons/fa";
 import { BsChatSquareQuoteFill } from "react-icons/bs";
 import { UserAvatar } from "../UserAvatar/UserAvatar";
+import { RelativeTime } from "../RelativeTime/RelativeTime";
 
 export interface Post {
   id: string;
@@ -22,6 +22,7 @@ interface PostListProps {
 }
 
 export const PostList = ({ posts, emptyMessage = "Nenhum post disponível no momento.", className = "" }: PostListProps) => {
+
   return (
     <div className={`space-y-6 ${className}`}>
       {posts.map(post => (
@@ -36,9 +37,7 @@ export const PostList = ({ posts, emptyMessage = "Nenhum post disponível no mom
               />
               <div>
                 <h4 className="font-bold text-white text-sm">{post.title}</h4>
-                <p className="text-[10px] text-gray-500 flex items-center gap-1">
-                  <FaRegClock className="text-[10px]" /> {new Date(post.createdAt).toLocaleDateString('pt-BR')}
-                </p>
+                <RelativeTime date={post.createdAt} />
               </div>
             </div>
             <p className="text-gray-300 text-sm mb-4">

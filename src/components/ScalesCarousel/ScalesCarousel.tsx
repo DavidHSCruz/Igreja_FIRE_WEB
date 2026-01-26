@@ -1,19 +1,26 @@
 import { useRef, useState, MouseEvent } from 'react';
-import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaChevronLeft, FaChevronRight, FaPlus } from 'react-icons/fa';
 import { ScaleCard, ScaleGroup } from '../ScaleCard/ScaleCard';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ScalesCarouselProps {
   scales: ScaleGroup[];
   titulo?: string;
   onJoin?: (scaleId: string) => void;
   onConfirm?: (scaleId: string, membroId: string) => void;
+  onCreateScale?: () => void;
+  onEditScale?: (scale: ScaleGroup) => void;
 }
 
-export const ScalesCarousel = ({ scales, titulo = 'Escalas', onJoin, onConfirm }: ScalesCarouselProps) => {
+export const ScalesCarousel = ({ scales, titulo = 'Escalas', onJoin, onConfirm, onCreateScale, onEditScale }: ScalesCarouselProps) => {
+  const { user } = useAuth();
   const carouselRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
+
+  const allowedRoles = ['ADMIN', 'PASTOR', 'LIDER'];
+  const canCreateScale = user?.systemRole && allowedRoles.includes(user.systemRole);
 
   const scroll = (direction: 'left' | 'right') => {
     if (carouselRef.current) {
@@ -52,7 +59,19 @@ export const ScalesCarousel = ({ scales, titulo = 'Escalas', onJoin, onConfirm }
   return (
     <section className="space-y-6">
       <div className="mb-2 flex items-center justify-between gap-4">
-        <h3 className="text-sm w-full text-gray-300 pb-2 border-b border-white/10">{titulo}</h3>
+        <div className="w-full flex items-center gap-3 pb-2 border-b border-white/10">
+          <h3 className="text-sm text-gray-300">{titulo}</h3>
+          {canCreateScale && (
+            <button
+              onClick={onCreateScale || (() => alert('Funcionalidade de criar escala em desenvolvimento'))}
+              className="flex items-center gap-1 text-[10px] bg-green-600/20 hover:bg-green-600/30 text-green-500 hover:text-green-400 px-2 py-0.5 rounded-full transition-colors border border-green-600/20"
+              title="Criar nova escala"
+            >
+              <FaPlus size={8} />
+              <span>Nova</span>
+            </button>
+          )}
+        </div>
         <div className="flex gap-2">
           <button
             onClick={() => scroll('left')}
@@ -91,6 +110,7 @@ export const ScalesCarousel = ({ scales, titulo = 'Escalas', onJoin, onConfirm }
               className="min-w-[90%] md:min-w-[calc(50%-0.75rem)] shrink-0 select-none"
               onJoin={onJoin}
               onConfirm={onConfirm}
+              onEdit={onEditScale}
             />
           ))
         ) : (

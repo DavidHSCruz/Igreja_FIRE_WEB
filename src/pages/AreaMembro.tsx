@@ -5,7 +5,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { MemberProfileCard } from '../components/MemberProfileCard/MemberProfileCard';
 import { MyScales } from '../components/MyScales/MyScales';
-import { AvailableScales } from '../components/AvailableScales/AvailableScales';
 import { CreatePost } from '../components/CreatePost/CreatePost';
 
 interface Verse {
@@ -16,9 +15,19 @@ interface Verse {
   text: string;
 }
 
+interface Evento {
+  id: string;
+  nome: string;
+  descricao: string;
+  dataInicio: string;
+  dataFim: string;
+  local: string;
+}
+
 export const AreaMembro = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [dailyVerse, setDailyVerse] = useState<Verse | null>(null);
+  const [events, setEvents] = useState<Evento[]>([]);
   const { user, refreshUser } = useAuth(); // Add refreshUser from context
   const [refreshTrigger, setRefreshTrigger] = useState(0); // State to trigger re-renders/fetches
 
@@ -45,9 +54,24 @@ export const AreaMembro = () => {
         console.error("Erro ao buscar posts:", error);
       }
     }
+
+    async function fetchEvents() {
+      try {
+        const response = await api.get('/eventos');
+        const now = new Date();
+        const futureEvents = response.data
+          .filter((e: Evento) => new Date(e.dataInicio) >= now)
+          .sort((a: Evento, b: Evento) => new Date(a.dataInicio).getTime() - new Date(b.dataInicio).getTime())
+          .slice(0, 5);
+        setEvents(futureEvents);
+      } catch (error) {
+        console.error("Erro ao buscar eventos:", error);
+      }
+    }
     
     fetchDailyVerse();
     fetchPosts();
+    fetchEvents();
   }, [refreshTrigger]); // Re-fetch when trigger changes
 
   return (
@@ -57,9 +81,6 @@ export const AreaMembro = () => {
           <MemberProfileCard user={user} />
 
           <MyScales key={`my-scales-${refreshTrigger}`} scales={user?.membro?.escalas || []} onUpdate={handleUpdate} />
-          
-          {/* Pass handleUpdate to refresh everything when user joins a scale */}
-          <AvailableScales key={`available-scales-${refreshTrigger}`} onUpdate={handleUpdate} />
         </aside>
 
         {/* Coluna Central - Conteúdo Principal */}
@@ -122,21 +143,27 @@ export const AreaMembro = () => {
             </div>
 
             <div className="space-y-3">
-              {[
-                { day: '12', title: 'Louvor', desc: 'Ensaio às 20h na igreja' },
-                { day: '20', title: 'Comunicação', desc: 'Reunião às 20h na igreja' },
-                { day: '29', title: 'NEXT', desc: 'Às 20h na igreja' }
-              ].map((item, i) => (
-                <div key={i} className="flex gap-3 items-center bg-[#252525] p-2 rounded-sm hover:bg-[#303030] transition-colors cursor-pointer">
-                  <div className="bg-white text-black w-12 h-12 flex items-center justify-center flex-shrink-0 rounded-sm">
-                    <span className="text-2xl font-bold text-[#161616]">{item.day}</span>
-                  </div>
-                  <div className="overflow-hidden">
-                    <h4 className="font-bold text-xs text-white truncate border-b border-white/10 pb-1 mb-1 inline-block">{item.title}</h4>
-                    <p className="text-[10px] text-gray-400 truncate">{item.desc}</p>
-                  </div>
-                </div>
-              ))}
+              {events.length > 0 ? (
+                events.map((event) => {
+                  const eventDate = new Date(event.dataInicio);
+                  const day = eventDate.getDate().toString().padStart(2, '0');
+                  const time = eventDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                  
+                  return (
+                    <div key={event.id} className="flex gap-3 items-center bg-[#252525] p-2 rounded-sm hover:bg-[#303030] transition-colors cursor-pointer">
+                      <div className="bg-white text-black w-12 h-12 flex items-center justify-center flex-shrink-0 rounded-sm">
+                        <span className="text-2xl font-bold text-[#161616]">{day}</span>
+                      </div>
+                      <div className="overflow-hidden">
+                        <h4 className="font-bold text-xs text-white truncate border-b border-white/10 pb-1 mb-1 inline-block">{event.nome}</h4>
+                        <p className="text-[10px] text-gray-400 truncate">{time} - {event.local}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-gray-500 text-xs italic text-center">Nenhum evento próximo.</p>
+              )}
             </div>
           </div>
         </aside>

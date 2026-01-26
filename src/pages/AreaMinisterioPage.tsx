@@ -11,7 +11,8 @@ import {
 import { PostList } from '../components/PostList/PostList';
 import { ScalesCarousel } from '../components/ScalesCarousel/ScalesCarousel';
 import { CreatePost } from '../components/CreatePost/CreatePost';
-import { UserAvatar } from '../components/UserAvatar/UserAvatar';
+import { CardMembro } from '../components/CardMembro/CardMembro';
+import { CreateScaleModal } from '../components/CreateScaleModal/CreateScaleModal';
 
 interface Member {
   id: string;
@@ -53,6 +54,9 @@ interface Scale {
   id: string;
   data: string;
   evento: string;
+  eventoRel?: {
+    id: string;
+  };
   local?: string;
   voluntarios: {
     membro: {
@@ -96,6 +100,9 @@ export const AreaMinisterioPage = () => {
   const [newMemberId, setNewMemberId] = useState('');
   const [newActivityId, setNewActivityId] = useState('');
   const [newRole, setNewRole] = useState('VOLUNTARIO');
+  const [isCreateScaleModalOpen, setIsCreateScaleModalOpen] = useState(false);
+  const [editingScale, setEditingScale] = useState<any | null>(null);
+  const [showAllMembers, setShowAllMembers] = useState(false);
 
   const isLeader = user?.systemRole === 'ADMIN' || user?.systemRole === 'PASTOR' || 
       (type === 'area' && user?.membro?.areas?.some(a => a.id === id && a.papel === 'LIDER')) ||
@@ -221,6 +228,7 @@ export const AreaMinisterioPage = () => {
         acc[key] = {
           id: scale.id,
           evento: scale.evento,
+          eventoId: scale.eventoRel?.id,
           data: scale.data,
           local: scale.local,
           items: [],
@@ -251,7 +259,7 @@ export const AreaMinisterioPage = () => {
       }
     });
     return acc;
-  }, {} as Record<string, { id: string; evento: string; data: string; local?: string; items: { name: string; role: string; scaleId?: string; status?: string; membroId?: string; isCurrentUser?: boolean; color?: string; avatarUrl?: string }[] }>);
+  }, {} as Record<string, { id: string; evento: string; eventoId?: string; data: string; local?: string; items: { name: string; role: string; scaleId?: string; status?: string; membroId?: string; isCurrentUser?: boolean; color?: string; avatarUrl?: string }[] }>);
 
   const finalScales = Object.values(groupedScales).map((group) => {
     // Merge roles for the same person
@@ -315,8 +323,11 @@ export const AreaMinisterioPage = () => {
       },
     );
 
-    return { ...group, items: mergedItems };
+    return { ...group, items: mergedItems, originalItems: group.items };
   });
+
+  // Sort by date (ascending)
+  finalScales.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
 
   const handleJoinScale = async (scaleId: string) => {
     try {
@@ -355,6 +366,11 @@ export const AreaMinisterioPage = () => {
     }
   };
 
+  const handleEditScale = (scale: any) => {
+    setEditingScale(scale);
+    setIsCreateScaleModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-[#0F0F0F] text-white font-montserrat">
       <main className="w-5/6 m-auto grid grid-cols-1 lg:grid-cols-12 gap-6 px-4 md:px-8 pb-8 pt-32">
@@ -391,32 +407,22 @@ export const AreaMinisterioPage = () => {
 
                 <div className="space-y-3 flex-1">
                   {membros.length > 0 ? (
-                    membros.map((membro, index) => {
-                      const colorClass =
-                        index % 2 === 0 ? 'bg-[#F3A920]' : 'bg-[#9B59B6]';
-
+                    (showAllMembers ? membros : membros.slice(0, 3)).map((membro, index) => {
+                      const defaultColor = index % 2 === 0 ? '#F3A920' : '#9B59B6';
+                      const roles = membro.atuacoes.map(a => `${a.papel}, ${a.atividade.name}`).join(', ');
+                      
                       return (
-                        <div
+                        <CardMembro
                           key={membro.id}
-                          className={`${colorClass} rounded-full px-4 py-2 flex items-center justify-between text-white text-sm`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <UserAvatar 
-                              user={{ 
-                                avatarUrl: membro.user?.avatarUrl, 
-                                membro: { nome: membro.nome } 
-                              }}
-                              size="w-7 h-7"
-                              iconSize="text-xs"
-                              hasBorder={false}
-                              className="bg-white/90"
-                            />
-                            <div className="flex flex-col">
-                              <span className="font-semibold leading-none">{membro.nome}</span>
-                              <span className="text-[10px] opacity-80 mt-1">{membro.atuacoes.map(a => `${a.papel}, ${a.atividade.name}`)}</span>
-                            </div>
-                          </div>
-                        </div>
+                          item={{
+                            name: membro.nome,
+                            roles: roles,
+                            membroId: membro.id,
+                            avatarUrl: membro.user?.avatarUrl,
+                            color: membro.color
+                          }}
+                          defaultColor={defaultColor}
+                        />
                       );
                     })
                   ) : (
@@ -426,9 +432,14 @@ export const AreaMinisterioPage = () => {
                   )}
                 </div>
 
-                <div className="mt-6 pt-3 border-t border-white/10 text-center text-xs text-gray-400">
-                  Ver mais...
-                </div>
+                {membros.length > 3 && (
+                  <button 
+                    onClick={() => setShowAllMembers(!showAllMembers)}
+                    className="w-full mt-6 pt-3 border-t border-white/10 text-center text-xs text-gray-400 hover:text-white transition-colors"
+                  >
+                    {showAllMembers ? "Ver menos" : "Ver mais..."}
+                  </button>
+                )}
               </div>
             </div>
           </aside>
@@ -466,7 +477,16 @@ export const AreaMinisterioPage = () => {
           </div>
 
           <section className="space-y-6">
-            <ScalesCarousel scales={finalScales} onJoin={handleJoinScale} onConfirm={handleConfirmScale} />
+            <ScalesCarousel 
+              scales={finalScales} 
+              onJoin={handleJoinScale} 
+              onConfirm={handleConfirmScale} 
+              onCreateScale={() => {
+                setEditingScale(null);
+                setIsCreateScaleModalOpen(true);
+              }}
+              onEditScale={handleEditScale}
+            />
           </section>
 
           <CreatePost 
@@ -550,6 +570,17 @@ export const AreaMinisterioPage = () => {
           </div>
         </div>
       )}
+
+      <CreateScaleModal 
+        isOpen={isCreateScaleModalOpen}
+        onClose={() => {
+          setIsCreateScaleModalOpen(false);
+          setEditingScale(null);
+        }}
+        contextId={id || ''}
+        contextType={type as 'area' | 'ministerio'}
+        initialData={editingScale}
+      />
     </div>
   );
 };

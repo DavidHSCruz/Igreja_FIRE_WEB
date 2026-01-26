@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 interface ActivityItemProps {
   name: string;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   link?: string;
   details?: string;
   className?: string;
@@ -14,33 +14,36 @@ export const ActivityItem: React.FC<ActivityItemProps> = ({
   icon, 
   link, 
   details, 
-  className = '' 
+  className = ''
 }) => {
+
   const content = (
-    <>
-      <div className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center shrink-0">
-        {icon}
-      </div>
-      <div className="flex flex-col text-left">
-        <span className="text-[10px] font-bold uppercase text-gray-300">
+    <div className="flex items-center justify-center gap-3">
+      {icon &&
+        <div className="w-10 h-10 rounded-full bg-white text-zinc-800 flex items-center justify-center shrink-0 text-lg">
+          {icon}
+        </div>
+      }
+      <div className="flex flex-col">
+        <span className="font-bold text-white text-sm">
           {name}
         </span>
         {details && (
-          <span className="text-[9px] text-gray-500 font-normal normal-case">
+          <span className="text-xs text-zinc-400 font-normal">
             {details}
           </span>
         )}
       </div>
-    </>
+    </div>
   );
 
-  const baseClasses = `w-full bg-[#252525] py-3 px-4 rounded-xl flex items-center gap-4 ${className}`;
+  const baseClasses = `w-full bg-[#252525] px-4 py-2 rounded-lg ${className}`;
 
   if (link) {
     return (
       <Link
         to={link}
-        className={`${baseClasses} hover:bg-[#303030] transition-all group`}
+        className={`${baseClasses} hover:bg-[#D63031] transition-all group block`}
       >
         {content}
       </Link>

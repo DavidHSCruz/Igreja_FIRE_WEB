@@ -200,7 +200,6 @@ export const MemberProfileCard: React.FC<MemberProfileCardProps> = ({
                   <ActivityItem
                     key={index}
                     name={activity.name}
-                    icon={activity.icon}
                     link={activity.link}
                     details={activity.details}
                   />
