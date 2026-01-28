@@ -90,7 +90,7 @@ export const NavBar = () => {
           <div className="relative mx-4">
             <button
               onClick={() => setProfileOpen(!profileOpen)}
-              className="text-quaternary hover:text-white transition-colors flex items-center"
+              className="text-quaternary hover:text-quaternary/70 transition-colors flex items-center"
             >
               <CgProfile size={32} />
             </button>
@@ -124,7 +124,7 @@ export const NavBar = () => {
 
         <Link 
           to={isMemberArea ? "/" : "/areamembro"} 
-          className="bg-quaternary text-primary px-6 py-2 rounded-lg font-bold text-sm hover:bg-zinc-800 transition-all"
+          className="bg-quaternary/90 text-primary px-6 py-2 rounded-lg font-bold text-sm hover:bg-red-600 transition-all"
         >
             {isMemberArea ? "SITE DA IGREJA" : "ÁREA DO MEMBRO"}
         </Link>

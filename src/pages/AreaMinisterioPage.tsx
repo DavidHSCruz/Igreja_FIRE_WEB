@@ -408,7 +408,7 @@ export const AreaMinisterioPage = () => {
                 <div className="space-y-3 flex-1">
                   {membros.length > 0 ? (
                     (showAllMembers ? membros : membros.slice(0, 3)).map((membro, index) => {
-                      const defaultColor = index % 2 === 0 ? '#F3A920' : '#9B59B6';
+                      const defaultColor = index % 2 === 0 ? '#EA3539' : '#9B59B6';
                       const roles = membro.atuacoes.map(a => `${a.papel}, ${a.atividade.name}`).join(', ');
                       
                       return (

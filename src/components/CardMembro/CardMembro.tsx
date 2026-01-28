@@ -24,7 +24,7 @@ export const CardMembro = ({
   item, 
   onJoin, 
   onConfirm, 
-  defaultColor = '#eeaa10'
+  defaultColor = '#EA3539'
 }: CardMembroProps) => {
   const isAvailable = item.name === 'Disponível';
   const itemColor = !isAvailable ? (item.color || defaultColor) : defaultColor;

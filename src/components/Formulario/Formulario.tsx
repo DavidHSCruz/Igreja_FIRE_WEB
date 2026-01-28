@@ -68,23 +68,6 @@ function reescreveNascimento(e: React.ChangeEvent<HTMLInputElement>) {
       [e.target.name]: modificado
     })
   }
-  
-  // async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-  //   e.preventDefault()
-
-  //   try {
-  //     const response = await axios.post("http://localhost:5000/membros", formData);
-  //     console.log("Membro criado com sucesso:", response.data)
-  //     alert("Membro cadastrado!")
-  //   } catch (error: unknown) {
-  //     let errorMessage = 'Erro desconhecido'
-  //     if (axios.isAxiosError(error)) {
-  //       errorMessage = error.response?.data || error.message
-  //     }
-  //     console.error("Erro ao cadastrar membro:", error)
-  //     alert("Erro ao cadastrar membro, " + errorMessage)
-  //   }
-  // }
 
   function handleSubmitWhatsapp(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -143,7 +126,7 @@ function reescreveNascimento(e: React.ChangeEvent<HTMLInputElement>) {
           />
           <Input 
             type="submit" 
-            className="text-primary opacity-90 col-span-2 justify-self-center" 
+            className="text-white font-bold bg-red-600 hover:bg-red-700 px-2 transition-colors rounded-full cursor-pointer col-span-2 justify-self-center shadow-lg shadow-red-600/20" 
             value="Entre em contato"
           />
         </form>

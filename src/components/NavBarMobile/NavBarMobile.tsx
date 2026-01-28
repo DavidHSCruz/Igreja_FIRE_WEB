@@ -38,7 +38,6 @@ export const NavBarMobile = () => {
     "HOME": "/",
     "NOSSA HISTÓRIA": "/historia",
     "GR's": "/grs",
-    "ÁREA DO MEMBRO": "/areamembro",
   };
 
   // Given a label, return the corresponding route.
@@ -52,12 +51,12 @@ export const NavBarMobile = () => {
   }
 
   return (
-    <header className={`bg-primary fixed top-0 left-0 w-full z-50 shadow-lg transition-all ${
-      visible ? "translate-y-0" : "-translate-y-full"
-    }`}>
-      <div
-        className="flex items-center justify-between h-16 px-4 transition-transform"
-      >
+    <header
+      className={`bg-primary fixed top-0 left-0 w-full z-50 shadow-lg transition-all ${
+        visible ? "translate-y-0" : "-translate-y-full"
+      }`}
+    >
+      <div className="flex items-center justify-between h-16 px-4 transition-transform">
         <Logo className="w-20 h-full text-secondary" />
         <div className="flex items-center gap-4">
           {isMemberArea && isAuthenticated && (
@@ -70,23 +69,26 @@ export const NavBarMobile = () => {
               </button>
               {profileOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-primary border border-quaternary rounded-lg shadow-xl py-2 z-50">
-                  <Link 
-                    to="/areamembro/profile" 
+                  <Link
+                    to="/areamembro/profile"
                     className="block px-4 py-2 text-sm text-quaternary hover:bg-zinc-800 transition-colors"
                     onClick={() => setProfileOpen(false)}
                   >
                     Profile
                   </Link>
-                  <Link 
-                    to="/areamembro/configuracoes" 
+                  <Link
+                    to="/areamembro/configuracoes"
                     className="block px-4 py-2 text-sm text-quaternary hover:bg-zinc-800 transition-colors"
                     onClick={() => setProfileOpen(false)}
                   >
                     Configurações
                   </Link>
                   <div className="border-t border-quaternary opacity-20 my-1"></div>
-                  <button 
-                    onClick={() => { logout(); setProfileOpen(false); }} 
+                  <button
+                    onClick={() => {
+                      logout();
+                      setProfileOpen(false);
+                    }}
                     className="block w-full text-left px-4 py-2 text-sm text-quaternary hover:bg-zinc-800 transition-colors"
                   >
                     Logout
@@ -101,12 +103,20 @@ export const NavBarMobile = () => {
             className="focus:outline-none"
           >
             <div className="relative w-6 h-6">
-              <SlMenu className={`absolute w-6 h-6 transition-transform duration-300 ease-in-out ${
-                  menuOpen ? "rotate-90 scale-75 opacity-0" : "rotate-0 scale-100 opacity-100"
-                }`}/>
-              <CgClose className={`absolute w-6 h-6 transition-transform duration-300 ease-in-out ${
-                  menuOpen ? "rotate-0 scale-130 opacity-100" : "rotate-90 scale-75 opacity-0"
-              }`}/>
+              <SlMenu
+                className={`absolute w-6 h-6 transition-transform duration-300 ease-in-out ${
+                  menuOpen
+                    ? "rotate-90 scale-75 opacity-0"
+                    : "rotate-0 scale-100 opacity-100"
+                }`}
+              />
+              <CgClose
+                className={`absolute w-6 h-6 transition-transform duration-300 ease-in-out ${
+                  menuOpen
+                    ? "rotate-0 scale-130 opacity-100"
+                    : "rotate-90 scale-75 opacity-0"
+                }`}
+              />
             </div>
           </button>
         </div>
@@ -119,28 +129,36 @@ export const NavBarMobile = () => {
                 key={i}
                 className={`${isActive(nav)} py-2 w-full text-center border-b border-quaternary`}
               >
-                <Link to={getRoute(nav)} onClick={() => setMenuOpen(false)}>
+                <Link
+                  className="block w-full"
+                  to={getRoute(nav)}
+                  onClick={() => setMenuOpen(false)}
+                >
                   {nav}
                 </Link>
               </li>
             ))}
-            <li className="py-2 w-full text-center border-b border-quaternary">
+            <li className="relative py-2 w-full text-center border-b border-quaternary">
               <button
                 className="w-full"
                 onClick={() => setDoeVisible(!doeVisible)}
               >
                 DOE
               </button>
+              <PopUpDOE visible={doeVisible} setVisible={setDoeVisible} />
             </li>
-            <li className="py-2 w-full text-center border-b border-quaternary bg-quaternary">
-              <Link to="/areamembro" onClick={() => setMenuOpen(false)} className="block w-full text-primary font-bold">
+            <li className="py-2 w-full text-center border-b border-quaternary bg-quaternary/90">
+              <Link
+                to="/areamembro"
+                onClick={() => setMenuOpen(false)}
+                className="block w-full text-primary font-bold"
+              >
                 ÁREA DO MEMBRO
               </Link>
             </li>
           </ul>
         </nav>
       )}
-      <PopUpDOE visible={doeVisible} setVisible={setDoeVisible} />
     </header>
   );
 };

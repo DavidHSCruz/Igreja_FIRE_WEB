@@ -14,6 +14,9 @@ import {
   FaSave,
   FaTimes,
   FaGraduationCap,
+  FaBuilding,
+  FaFlag,
+  FaMap,
 } from "react-icons/fa";
 import { useAuth } from "../contexts/AuthContext";
 import { MemberProfileCard } from "../components/MemberProfileCard/MemberProfileCard";
@@ -304,6 +307,7 @@ export const Profile = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fadeIn">
                   <ProfileInput
                     label="Logradouro"
+                    icon={<FaMapMarkerAlt className="text-gray-500 text-xs" />}
                     value={formData.endereco}
                     readOnly
                     disabled
@@ -312,6 +316,7 @@ export const Profile = () => {
 
                   <ProfileInput
                     label="Bairro"
+                    icon={<FaBuilding className="text-gray-500 text-xs" />}
                     value={formData.bairro}
                     readOnly
                     disabled
@@ -319,6 +324,7 @@ export const Profile = () => {
 
                   <ProfileInput
                     label="CEP"
+                    icon={<FaMap className="text-gray-500 text-xs" />}
                     value={formData.cep}
                     readOnly
                     disabled
@@ -326,6 +332,7 @@ export const Profile = () => {
 
                   <ProfileInput
                     label="Cidade"
+                    icon={<FaBuilding className="text-gray-500 text-xs" />}
                     value={formData.cidade}
                     readOnly
                     disabled
@@ -333,6 +340,7 @@ export const Profile = () => {
 
                   <ProfileInput
                     label="Estado"
+                    icon={<FaFlag className="text-gray-500 text-xs" />}
                     value={formData.estado}
                     readOnly
                     disabled
@@ -440,6 +448,7 @@ export const Profile = () => {
                       <>
                         <ProfileInput
                           label="Logradouro"
+                          icon={<FaMapMarkerAlt className="text-gray-500 text-xs" />}
                           type="text"
                           name="endereco"
                           value={editFormData.endereco}
@@ -451,6 +460,7 @@ export const Profile = () => {
 
                         <ProfileInput
                           label="Bairro"
+                          icon={<FaBuilding className="text-gray-500 text-xs" />}
                           type="text"
                           name="bairro"
                           value={editFormData.bairro}
@@ -461,6 +471,7 @@ export const Profile = () => {
 
                         <ProfileInput
                           label="CEP"
+                          icon={<FaMap className="text-gray-500 text-xs" />}
                           type="text"
                           name="cep"
                           value={editFormData.cep}
@@ -471,6 +482,7 @@ export const Profile = () => {
 
                         <ProfileInput
                           label="Cidade"
+                          icon={<FaBuilding className="text-gray-500 text-xs" />}
                           type="text"
                           name="cidade"
                           value={editFormData.cidade}
@@ -481,6 +493,7 @@ export const Profile = () => {
 
                         <ProfileInput
                           label="Estado"
+                          icon={<FaFlag className="text-gray-500 text-xs" />}
                           type="text"
                           name="estado"
                           value={editFormData.estado}

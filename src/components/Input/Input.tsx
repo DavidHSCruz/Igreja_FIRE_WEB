@@ -76,17 +76,17 @@ export const Input = ({ className = '', name, ...props }: InputProps) => {
   return (
     <div className={`${className}`}>
       <div className={`
-        relative flex place-items-center
-        ${props.type !== 'submit' && 'bg-primary'}
-        ${error && 'border-secondary border-2 border-opacity-50'}
+        relative flex place-items-center rounded-lg overflow-hidden transition-colors
+        ${props.type !== 'submit' ? 'bg-[#252525] border border-white/10 focus-within:border-red-600' : ''}
+        ${error && 'border-red-600 border-2 border-opacity-50'}
       `}
       >
         <input
           id={name}
           name={name}
           className={`peer
-                      w-full placeholder-primary p-2 bg-transparent
-                      focus:placeholder-quaternary focus:placeholder-opacity-50 focus:outline-none focus:ring-0
+                      w-full placeholder-transparent p-3 bg-transparent text-white
+                      focus:outline-none focus:ring-0
                       ${props.type === 'submit' ? 'cursor-pointer' : ''}
                     `}
           onBlur={verificaInput}
@@ -101,21 +101,21 @@ export const Input = ({ className = '', name, ...props }: InputProps) => {
           <label
             htmlFor={name}
             className={`
-              absolute left-2 transition-all duration-200 cursor-text
-              peer-placeholder-shown:top-2 peer-placeholder-shown:text-base
-              peer-focus:-top-5 peer-focus:text-xs peer-focus:opacity-100
-              ${props.value ? '-top-5 text-xs' : 'top-2'}
-              ${props.value && !error ? 'text-primary opacity-100' : 'text-quaternary opacity-50'}
-              ${error ? 'text-secondary peer-invalid:opacity-100' : 'peer-focus:text-primary'}
+              absolute left-3 transition-all duration-200 cursor-text pointer-events-none
+              peer-placeholder-shown:top-3 peer-placeholder-shown:text-base
+              peer-focus:-top-0 peer-focus:text-[10px] peer-focus:translate-y-1
+              ${props.value ? '-top-0 text-[10px] translate-y-1' : 'top-3'}
+              ${props.value && !error ? 'text-gray-400' : 'text-gray-500'}
+              ${error ? 'text-red-500' : 'peer-focus:text-red-500'}
             `}
           >
-            {name}
+            {name.charAt(0).toUpperCase() + name.slice(1)}
           </label>
         }
         {error &&
-          <div>
+          <div className="absolute right-2">
             <IoAlertCircle 
-              className="w-6 h-6 text-secondary mr-2 cursor-pointer"
+              className="w-5 h-5 text-red-600 cursor-pointer"
               onClick={() => setHiddenError(!hiddenError)}
             />
           </div>
@@ -124,8 +124,8 @@ export const Input = ({ className = '', name, ...props }: InputProps) => {
       {error &&
         <>
           {!hiddenError &&
-            <div className="left-full w-full z-50 top-0 bg-secondary p-2">
-              <p className="text-sm text-primary">{error}</p>
+            <div className="relative mt-1 bg-red-600/10 border border-red-600/20 p-2 rounded text-left">
+              <p className="text-xs text-red-200">{error}</p>
             </div>
           }
         </>

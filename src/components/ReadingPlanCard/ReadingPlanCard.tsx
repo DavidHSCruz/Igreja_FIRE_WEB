@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface ReadingPlanCardProps {
   title: string;
   subtitle: string;

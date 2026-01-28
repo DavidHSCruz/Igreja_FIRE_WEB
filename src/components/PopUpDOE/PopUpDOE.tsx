@@ -1,50 +1,101 @@
+import { useState } from "react";
+import { FaTimes, FaCopy, FaCheck, FaQrcode } from "react-icons/fa";
+
 interface PopUpDOEProps {
   visible: boolean;
   setVisible: (visible: boolean) => void;
 }
 
 export const PopUpDOE = ({ visible, setVisible }: PopUpDOEProps) => {
+  const [copied, setCopied] = useState(false);
+  const pixKey = "46529785000195";
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(pixKey);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (!visible) return null;
+
   return (
-    <div
-      className={`
-            ${visible ? "scale-100 opacity-100" : "scale-95 opacity-0"} 
-            absolute top-full right-0 
-            w-96 p-6
-            bg-primary 
-            shadow-lg rounded-md 
-            transform transition-all duration-200 
-            mt-2
-        `}
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm transition-opacity duration-300"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) setVisible(false);
+      }}
     >
-      <div className="flex gap-6">
-        <div className="text-quaternary flex flex-col gap-4 flex-1">
-          <h3 className="font-medium text-lg opacity-80">Faça sua doação</h3>
-          <div className="space-y-2 opacity-50">
-            <p>PIX: 46529785000195</p>
-            <p>Banco: 033</p>
-            <p>Agência: 4646</p>
-            <p>Conta: 13004390-0</p>
-          </div>
+      <div 
+        className="bg-[#1A1A1A] border border-white/10 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 scale-100 mx-4 animate-fade-in-up"
+      >
+        {/* Header */}
+        <div className="bg-[#222] p-4 flex justify-between items-center border-b border-white/5">
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <FaQrcode className="text-secondary" />
+                Faça sua doação
+            </h3>
+            <button 
+                onClick={() => setVisible(false)}
+                className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-full"
+            >
+                <FaTimes size={20} />
+            </button>
         </div>
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-32 h-32 bg-quaternary bg-opacity-5 rounded-lg flex items-center justify-center">
-            <img
-              src="/img/QRcode.png"
-              alt="QR Code PIX"
-              className="w-28 h-28 object-contain"
-            />
-          </div>
-          <span className="text-sm text-quaternary opacity-50">
-            Escaneie o QR Code
-          </span>
+
+        {/* Content */}
+        <div className="p-8 space-y-6">
+            {/* QR Code */}
+            <div className="flex flex-col items-center">
+                <div className="bg-white p-4 rounded-xl mb-3 shadow-inner">
+                    <img
+                        src="/img/QRcode.png"
+                        alt="QR Code PIX"
+                        className="w-48 h-48 object-contain"
+                    />
+                </div>
+                <span className="text-sm text-gray-400 text-center">
+                    Escaneie o QR Code com o app do seu banco
+                </span>
+            </div>
+
+            {/* Pix Copy */}
+            <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Chave PIX (CNPJ)</label>
+                <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-[#252525] border border-white/10 rounded-lg p-3 text-gray-300 font-mono text-sm truncate select-all">
+                        {pixKey}
+                    </div>
+                    <button 
+                        onClick={handleCopy}
+                        className={`p-3 rounded-lg border transition-all ${
+                            copied 
+                            ? 'bg-green-500/10 border-green-500/50 text-green-500' 
+                            : 'bg-zinc-500/10 border-zinc-500/50 text-zinc-500 hover:bg-zinc-500/20'
+                        }`}
+                        title="Copiar chave PIX"
+                    >
+                        {copied ? <FaCheck /> : <FaCopy />}
+                    </button>
+                </div>
+            </div>
+
+            {/* Bank Info */}
+            <div className="grid grid-cols-2 gap-4 bg-[#252525] p-4 rounded-xl border border-white/5">
+                <div>
+                    <span className="block text-xs text-gray-500 uppercase mb-1">Banco</span>
+                    <span className="text-white font-medium">Santander (033)</span>
+                </div>
+                <div>
+                    <span className="block text-xs text-gray-500 uppercase mb-1">Agência</span>
+                    <span className="text-white font-medium">4646</span>
+                </div>
+                <div className="col-span-2 border-t border-white/5 pt-2 mt-1">
+                    <span className="block text-xs text-gray-500 uppercase mb-1">Conta Corrente</span>
+                    <span className="text-white font-medium">13004390-0</span>
+                </div>
+            </div>
         </div>
       </div>
-      <button
-        className="w-full mt-4 bg-secondary text-primary py-2 px-4 rounded-md hover:bg-opacity-90 transition-colors"
-        onClick={() => setVisible(false)}
-      >
-        Fechar
-      </button>
     </div>
   );
 };

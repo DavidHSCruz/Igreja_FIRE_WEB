@@ -1,5 +1,3 @@
-import React from 'react';
-
 export type CourseStatus = 'concluido' | 'em_andamento' | 'nao_iniciado';
 
 interface CourseCardProps {
