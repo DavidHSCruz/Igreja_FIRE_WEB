@@ -34,6 +34,29 @@ export const MemberProfileCard: React.FC<MemberProfileCardProps> = ({
 
   const [currentView, setCurrentView] = useState<"Áreas" | "Ministérios" | "Cursos">("Áreas");
   const [headerColor, setHeaderColor] = useState(user?.membro?.color || "#D63031"); // Default red if no color
+  
+  const [allMinisterios, setAllMinisterios] = useState<any[]>([]);
+  const [allAreas, setAllAreas] = useState<any[]>([]);
+
+  const isAdminOrPastor = user?.systemRole === 'ADMIN' || user?.systemRole === 'PASTOR';
+
+  useEffect(() => {
+    if (isAdminOrPastor && !propActivities) {
+        const fetchAll = async () => {
+            try {
+                const [areasRes, ministeriosRes] = await Promise.all([
+                    api.get('/areas'),
+                    api.get('/ministerios')
+                ]);
+                setAllAreas(areasRes.data);
+                setAllMinisterios(ministeriosRes.data);
+            } catch (error) {
+                console.error("Error fetching all areas/ministerios for admin/pastor", error);
+            }
+        };
+        fetchAll();
+    }
+  }, [user, isAdminOrPastor, propActivities]);
 
   useEffect(() => {
     setHeaderColor(user?.membro?.color || "#D63031");
@@ -64,14 +87,17 @@ export const MemberProfileCard: React.FC<MemberProfileCardProps> = ({
     }
   };
 
+  const targetMinisterios = (isAdminOrPastor && allMinisterios.length > 0) ? allMinisterios : memberMinisterios;
+  const targetAreas = (isAdminOrPastor && allAreas.length > 0) ? allAreas : memberAreas;
+
   const computedActivities: Activity[] = [
-    ...memberMinisterios.map((m) => ({
+    ...targetMinisterios.map((m: any) => ({
       name: m.name,
       icon: <FaUser className="text-sm" />,
       link: `/areamembro/details/ministerio/${m.id}`,
       type: "ministerio" as const,
     })),
-    ...memberAreas.map((a) => ({
+    ...targetAreas.map((a: any) => ({
       name: a.name,
       icon: <FaUser className="text-sm" />,
       link: `/areamembro/details/area/${a.id}`,

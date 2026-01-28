@@ -10,8 +10,11 @@ export const NavBar = () => {
   const [doeVisible, setDoeVisible] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const { pathname } = useLocation();
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, user } = useAuth();
   const isMemberArea = pathname.startsWith('/areamembro');
+
+  const allowedRoles = ['PASTOR', 'DIACONO', 'ADMIN'];
+  const hasAccess = user?.systemRole && allowedRoles.includes(user.systemRole);
 
   useEffect(() => {
     let lastScrollY = window.scrollY;
@@ -103,6 +106,15 @@ export const NavBar = () => {
                 >
                   Profile
                 </Link>
+                {hasAccess && (
+                  <Link 
+                    to="/areamembro/minha-igreja" 
+                    className="block px-4 py-2 text-sm text-quaternary hover:bg-zinc-800 transition-colors"
+                    onClick={() => setProfileOpen(false)}
+                  >
+                    Minha Igreja
+                  </Link>
+                )}
                 <Link 
                   to="/areamembro/configuracoes" 
                   className="block px-4 py-2 text-sm text-quaternary hover:bg-zinc-800 transition-colors"

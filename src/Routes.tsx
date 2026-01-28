@@ -13,6 +13,7 @@ import { Profile } from './pages/Profile'
 import { LoginMembro } from './pages/LoginMembro'
 import { AreaMinisterioPage } from './pages/AreaMinisterioPage'
 import { useAuth } from './contexts/AuthContext'
+import { MinhaIgreja } from './pages/MinhaIgreja'
 
 
 function ScrollToTop() {
@@ -53,6 +54,9 @@ function AppContent({ width }: { width: number }) {
   const { user } = useAuth()
   const isMemberArea = pathname.startsWith('/areamembro')
 
+  const allowedRolesMinhaIgreja = ['PASTOR', 'DIACONO', 'ADMIN'];
+  const hasMinhaIgrejaAccess = user?.systemRole && allowedRolesMinhaIgreja.includes(user.systemRole);
+
   function RequireAuth({ children }: { children: JSX.Element }) {
     const { isAuthenticated, loading } = useAuth()
 
@@ -91,6 +95,11 @@ function AppContent({ width }: { width: number }) {
               }
             </RequireAuth>
         } />
+        <Route path="/areamembro/minha-igreja" element={
+            <RequireAuth>
+              {hasMinhaIgrejaAccess ? <MinhaIgreja /> : <Navigate to="/areamembro" replace />}
+            </RequireAuth>
+        } />
         <Route path="/areamembro/details/:type/:id" element={
             <RequireAuth>
               <AreaMinisterioPage />
@@ -98,7 +107,7 @@ function AppContent({ width }: { width: number }) {
         } />
         <Route path="/areamembro/configuracoes" element={
             <RequireAuth>
-              <div className="pt-32 px-8 text-white text-center">
+              <div className="pt-32 px-8 text-quaternary text-center">
                 <h1 className="text-3xl font-bold">Configurações</h1>
                 <p className="mt-4">Em construção...</p>
               </div>
