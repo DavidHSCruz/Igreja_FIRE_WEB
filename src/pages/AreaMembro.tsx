@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import { FaSearch } from "react-icons/fa";
-import { PostList, Post } from '../components/PostList/PostList';
-import { useAuth } from '../contexts/AuthContext';
-import { api } from '../services/api';
-import { MemberProfileCard } from '../components/MemberProfileCard/MemberProfileCard';
-import { MyScales } from '../components/MyScales/MyScales';
-import { CreatePost } from '../components/CreatePost/CreatePost';
+import { PostList, Post } from "../components/PostList/PostList";
+import { api } from "../services/api";
+import { MemberProfileCard } from "../components/MemberProfileCard/MemberProfileCard";
+import { MyScales } from "../components/MyScales/MyScales";
+import { CreatePost } from "../components/CreatePost/CreatePost";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
+import { refreshUser } from "../store/slices/authSlice";
 
 interface Verse {
   bookName: string;
@@ -28,18 +29,19 @@ export const AreaMembro = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [dailyVerse, setDailyVerse] = useState<Verse | null>(null);
   const [events, setEvents] = useState<Evento[]>([]);
-  const { user, refreshUser } = useAuth(); // Add refreshUser from context
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.auth.user);
   const [refreshTrigger, setRefreshTrigger] = useState(0); // State to trigger re-renders/fetches
 
   const handleUpdate = () => {
-    setRefreshTrigger(prev => prev + 1);
-    if (refreshUser) refreshUser(); // Refresh user data (including MyScales)
+    setRefreshTrigger((prev) => prev + 1);
+    dispatch(refreshUser());
   };
 
   useEffect(() => {
     async function fetchDailyVerse() {
       try {
-        const response = await api.get('/bible/daily');
+        const response = await api.get("/bible/daily");
         setDailyVerse(response.data);
       } catch (error) {
         console.error("Erro ao buscar versículo:", error);
@@ -48,7 +50,7 @@ export const AreaMembro = () => {
 
     async function fetchPosts() {
       try {
-        const response = await api.get('/posts');
+        const response = await api.get("/posts");
         setPosts(response.data);
       } catch (error) {
         console.error("Erro ao buscar posts:", error);
@@ -57,18 +59,22 @@ export const AreaMembro = () => {
 
     async function fetchEvents() {
       try {
-        const response = await api.get('/eventos');
+        const response = await api.get("/eventos");
         const now = new Date();
         const futureEvents = response.data
           .filter((e: Evento) => new Date(e.dataInicio) >= now)
-          .sort((a: Evento, b: Evento) => new Date(a.dataInicio).getTime() - new Date(b.dataInicio).getTime())
+          .sort(
+            (a: Evento, b: Evento) =>
+              new Date(a.dataInicio).getTime() -
+              new Date(b.dataInicio).getTime(),
+          )
           .slice(0, 5);
         setEvents(futureEvents);
       } catch (error) {
         console.error("Erro ao buscar eventos:", error);
       }
     }
-    
+
     fetchDailyVerse();
     fetchPosts();
     fetchEvents();
@@ -80,57 +86,75 @@ export const AreaMembro = () => {
         <aside className="lg:col-span-3 space-y-6">
           <MemberProfileCard user={user} />
 
-          <MyScales key={`my-scales-${refreshTrigger}`} scales={user?.membro?.escalas || []} onUpdate={handleUpdate} />
+          <MyScales
+            key={`my-scales-${refreshTrigger}`}
+            scales={user?.membro?.escalas || []}
+            onUpdate={handleUpdate}
+          />
         </aside>
 
         {/* Coluna Central - Conteúdo Principal */}
         <section className="lg:col-span-6 space-y-6">
-           {/* Barra de Busca */}
-           <div className="bg-[#161616] rounded-xl p-4 flex items-center gap-3 border border-white/5 h-14">
-              <FaSearch className="text-gray-500 text-lg ml-1" />
-           </div>
+          {/* Barra de Busca */}
+          <div className="bg-[#161616] rounded-xl p-4 flex items-center gap-3 border border-white/5 h-14">
+            <FaSearch className="text-gray-500 text-lg ml-1" />
+          </div>
 
           {/* Versículo do Dia */}
           <div className="bg-[#161616] rounded-xl p-6 border border-white/5">
             <div className="mb-4">
-              <h3 className="text-sm text-gray-300 pb-2 border-b border-white/10">Versículo do dia</h3>
+              <h3 className="text-sm text-gray-300 pb-2 border-b border-white/10">
+                Versículo do dia
+              </h3>
             </div>
             <div className="px-2 py-2">
-               {dailyVerse ? (
-                 <>
-                   <p className="text-gray-300 text-sm leading-relaxed font-medium italic">
-                     "{dailyVerse.text}"
-                   </p>
-                   <p className="text-right text-xs text-gray-400 mt-4 font-bold">
-                     {dailyVerse.bookName} {dailyVerse.chapter}:{dailyVerse.number}
-                   </p>
-                 </>
-               ) : (
-                  <p className="text-gray-500 text-xs italic">Carregando versículo...</p>
-               )}
+              {dailyVerse ? (
+                <>
+                  <p className="text-gray-300 text-sm leading-relaxed font-medium italic">
+                    "{dailyVerse.text}"
+                  </p>
+                  <p className="text-right text-xs text-gray-400 mt-4 font-bold">
+                    {dailyVerse.bookName} {dailyVerse.chapter}:
+                    {dailyVerse.number}
+                  </p>
+                </>
+              ) : (
+                <p className="text-gray-500 text-xs italic">
+                  Carregando versículo...
+                </p>
+              )}
             </div>
           </div>
 
           {/* Feed / Comunicação */}
           <div className="space-y-4">
-             <CreatePost onPostCreated={handleUpdate} />
-             <PostList posts={posts} />
+            <CreatePost onPostCreated={handleUpdate} />
+            <PostList posts={posts} />
           </div>
         </section>
 
         {/* Coluna Direita - Agenda e Planos */}
         <aside className="lg:col-span-3 space-y-6">
-           {/* Planos de Leitura */}
+          {/* Planos de Leitura */}
           <div className="bg-[#161616] rounded-xl p-6 border border-white/5">
             <div className="mb-4">
-              <h3 className="text-sm text-gray-300 pb-2 border-b border-white/10">Planos de leitura</h3>
+              <h3 className="text-sm text-gray-300 pb-2 border-b border-white/10">
+                Planos de leitura
+              </h3>
             </div>
-            
+
             <div className="space-y-3">
               {[1, 2, 3].map((_, i) => (
-                <div key={i} className="bg-[#252525] p-3 rounded-sm hover:bg-[#303030] transition-colors cursor-pointer">
-                    <h4 className="font-bold text-xs text-gray-300 mb-1 border-b border-white/10 pb-1 inline-block">Bíblia em 365 dias</h4>
-                    <p className="text-[10px] text-gray-500 mt-1">Pequena descrição à respeito do plano de leitura...</p>
+                <div
+                  key={i}
+                  className="bg-[#252525] p-3 rounded-sm hover:bg-[#303030] transition-colors cursor-pointer"
+                >
+                  <h4 className="font-bold text-xs text-gray-300 mb-1 border-b border-white/10 pb-1 inline-block">
+                    Bíblia em 365 dias
+                  </h4>
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    Pequena descrição à respeito do plano de leitura...
+                  </p>
                 </div>
               ))}
             </div>
@@ -139,35 +163,51 @@ export const AreaMembro = () => {
           {/* Minha Agenda */}
           <div className="bg-[#161616] rounded-xl p-6 border border-white/5">
             <div className="mb-4">
-              <h3 className="text-sm text-gray-300 pb-2 border-b border-white/10">Minha agenda</h3>
+              <h3 className="text-sm text-gray-300 pb-2 border-b border-white/10">
+                Minha agenda
+              </h3>
             </div>
 
             <div className="space-y-3">
               {events.length > 0 ? (
                 events.map((event) => {
                   const eventDate = new Date(event.dataInicio);
-                  const day = eventDate.getDate().toString().padStart(2, '0');
-                  const time = eventDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                  
+                  const day = eventDate.getDate().toString().padStart(2, "0");
+                  const time = eventDate.toLocaleTimeString("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+
                   return (
-                    <div key={event.id} className="flex gap-3 items-center bg-[#252525] p-2 rounded-sm hover:bg-[#303030] transition-colors cursor-pointer">
+                    <div
+                      key={event.id}
+                      className="flex gap-3 items-center bg-[#252525] p-2 rounded-sm hover:bg-[#303030] transition-colors cursor-pointer"
+                    >
                       <div className="bg-white text-black w-12 h-12 flex items-center justify-center flex-shrink-0 rounded-sm">
-                        <span className="text-2xl font-bold text-[#161616]">{day}</span>
+                        <span className="text-2xl font-bold text-[#161616]">
+                          {day}
+                        </span>
                       </div>
                       <div className="overflow-hidden">
-                        <h4 className="font-bold text-xs text-white truncate border-b border-white/10 pb-1 mb-1 inline-block">{event.nome}</h4>
-                        <p className="text-[10px] text-gray-400 truncate">{time} - {event.local}</p>
+                        <h4 className="font-bold text-xs text-white truncate border-b border-white/10 pb-1 mb-1 inline-block">
+                          {event.nome}
+                        </h4>
+                        <p className="text-[10px] text-gray-400 truncate">
+                          {time} - {event.local}
+                        </p>
                       </div>
                     </div>
                   );
                 })
               ) : (
-                <p className="text-gray-500 text-xs italic text-center">Nenhum evento próximo.</p>
+                <p className="text-gray-500 text-xs italic text-center">
+                  Nenhum evento próximo.
+                </p>
               )}
             </div>
           </div>
         </aside>
       </main>
     </div>
-  )
-}
+  );
+};

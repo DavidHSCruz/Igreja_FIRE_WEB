@@ -18,19 +18,19 @@ import {
   FaFlag,
   FaMap,
 } from "react-icons/fa";
-import { useAuth } from "../contexts/AuthContext";
 import { MemberProfileCard } from "../components/MemberProfileCard/MemberProfileCard";
 import { ProfileInput } from "../components/ProfileInput/ProfileInput";
 import { CourseCard } from "../components/CourseCard/CourseCard";
 import { ReadingPlanCard } from "../components/ReadingPlanCard/ReadingPlanCard";
 import { api } from "../services/api";
-import { 
-  validateCPF, 
-  validateEmail, 
-  validatePhone, 
-  validateDate, 
+import { useAppSelector } from "../store/hooks";
+import {
+  validateCPF,
+  validateEmail,
+  validatePhone,
+  validateDate,
   validateRequired,
-  validateAddressSection
+  validateAddressSection,
 } from "../utils/validations";
 
 interface Evento {
@@ -56,14 +56,24 @@ interface Escala {
   }[];
 }
 
+interface MemberProfileResponse {
+  nome?: string;
+  email?: string;
+  telefone?: string;
+  dataNascimento?: string;
+  endereco?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
+  cep?: string;
+  cpf?: string;
+}
+
 export const Profile = () => {
-  const { user } = useAuth();
+  const user = useAppSelector((state) => state.auth.user);
 
   // Logic to block visitor access
   const isVisitor = !user?.systemRole || user.systemRole === "VISITANTE";
-  if (isVisitor) {
-    return <Navigate to="/areamembro" replace />;
-  }
 
   const [activeTab, setActiveTab] = useState<"dados" | "endereco">("dados");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -94,19 +104,25 @@ export const Profile = () => {
   const [userScales, setUserScales] = useState<Escala[]>([]);
 
   useEffect(() => {
+    if (isVisitor) return;
+
     const fetchData = async () => {
       try {
         const [eventsRes, scalesRes, memberRes] = await Promise.all([
-          api.get<Evento[]>('/eventos'),
+          api.get<Evento[]>("/eventos"),
           api.get<Escala[]>(`/escalas/membro/${user?.membro?.id}`),
-          api.get<any>(`/membros/${user?.membro?.id}`)
+          api.get<MemberProfileResponse>(`/membros/${user?.membro?.id}`),
         ]);
-        
+
         // Filter future events and sort by date
         const futureEvents = eventsRes.data
-          .filter(e => new Date(e.dataInicio) >= new Date())
-          .sort((a, b) => new Date(a.dataInicio).getTime() - new Date(b.dataInicio).getTime());
-          
+          .filter((e) => new Date(e.dataInicio) >= new Date())
+          .sort(
+            (a, b) =>
+              new Date(a.dataInicio).getTime() -
+              new Date(b.dataInicio).getTime(),
+          );
+
         setEvents(futureEvents);
         setUserScales(scalesRes.data);
 
@@ -116,7 +132,9 @@ export const Profile = () => {
           nome: member.nome || "",
           email: member.email || "",
           telefone: member.telefone || "",
-          dataNascimento: member.dataNascimento ? member.dataNascimento.split('T')[0] : "",
+          dataNascimento: member.dataNascimento
+            ? member.dataNascimento.split("T")[0]
+            : "",
           endereco: member.endereco || "",
           bairro: member.bairro || "",
           cidade: member.cidade || "",
@@ -127,7 +145,6 @@ export const Profile = () => {
         };
         setFormData(newFormData);
         setEditFormData(newFormData);
-
       } catch (error) {
         console.error("Error fetching agenda:", error);
       }
@@ -136,7 +153,11 @@ export const Profile = () => {
     if (user?.membro?.id) {
       fetchData();
     }
-  }, [user?.membro?.id]);
+  }, [isVisitor, user?.membro?.id]);
+
+  if (isVisitor) {
+    return <Navigate to="/areamembro" replace />;
+  }
 
   const handleOpenModal = () => {
     setEditFormData({ ...formData });
@@ -148,8 +169,9 @@ export const Profile = () => {
   const handleSave = async () => {
     const newErrors: { [key: string]: string } = {};
 
-    if (!validateRequired(editFormData.nome)) newErrors.nome = "Nome é obrigatório";
-    
+    if (!validateRequired(editFormData.nome))
+      newErrors.nome = "Nome é obrigatório";
+
     if (!validateRequired(editFormData.email)) {
       newErrors.email = "E-mail é obrigatório";
     } else if (!validateEmail(editFormData.email)) {
@@ -160,14 +182,17 @@ export const Profile = () => {
       newErrors.telefone = "Telefone inválido";
     }
 
-    if (editFormData.dataNascimento && !validateDate(editFormData.dataNascimento)) {
+    if (
+      editFormData.dataNascimento &&
+      !validateDate(editFormData.dataNascimento)
+    ) {
       newErrors.dataNascimento = "Data de nascimento inválida";
     }
 
     // Address Validations
     const addressErrors = validateAddressSection(editFormData);
     Object.assign(newErrors, addressErrors);
-    
+
     // Validate Document (CPF only)
     if (!validateCPF(documentValue)) {
       newErrors.document = "CPF inválido";
@@ -196,20 +221,21 @@ export const Profile = () => {
   const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
     // Always apply CPF mask
-    value = value.replace(/\D/g, "")
+    value = value
+      .replace(/\D/g, "")
       .replace(/(\d{3})(\d)/, "$1.$2")
       .replace(/(\d{3})(\d)/, "$1.$2")
       .replace(/(\d{3})(\d{1,2})/, "$1-$2")
       .replace(/(-\d{2})\d+?$/, "$1");
-      
+
     setDocumentValue(value);
-    if (errors.document) setErrors(prev => ({ ...prev, document: "" }));
+    if (errors.document) setErrors((prev) => ({ ...prev, document: "" }));
   };
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setEditFormData((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors(prev => ({ ...prev, [name]: "" }));
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   return (
@@ -373,7 +399,11 @@ export const Profile = () => {
                       className={`text-sm font-bold uppercase pb-2 transition-colors relative ${activeTab === "dados" ? "text-secondary border-b-2 border-secondary" : "text-gray-500 hover:text-white"}`}
                     >
                       Dados Pessoais
-                      {(errors.nome || errors.email || errors.telefone || errors.dataNascimento || errors.document) && (
+                      {(errors.nome ||
+                        errors.email ||
+                        errors.telefone ||
+                        errors.dataNascimento ||
+                        errors.document) && (
                         <span className="absolute -top-1 -right-2 w-2 h-2 bg-red-500 rounded-full"></span>
                       )}
                     </button>
@@ -382,7 +412,11 @@ export const Profile = () => {
                       className={`text-sm font-bold uppercase pb-2 transition-colors relative ${activeTab === "endereco" ? "text-secondary border-b-2 border-secondary" : "text-gray-500 hover:text-white"}`}
                     >
                       Endereço
-                      {(errors.endereco || errors.bairro || errors.cep || errors.cidade || errors.estado) && (
+                      {(errors.endereco ||
+                        errors.bairro ||
+                        errors.cep ||
+                        errors.cidade ||
+                        errors.estado) && (
                         <span className="absolute -top-1 -right-2 w-2 h-2 bg-red-500 rounded-full"></span>
                       )}
                     </button>
@@ -404,7 +438,9 @@ export const Profile = () => {
 
                         <ProfileInput
                           label="E-mail"
-                          icon={<FaEnvelope className="text-gray-500 text-xs" />}
+                          icon={
+                            <FaEnvelope className="text-gray-500 text-xs" />
+                          }
                           type="email"
                           name="email"
                           value={editFormData.email}
@@ -426,7 +462,9 @@ export const Profile = () => {
 
                         <ProfileInput
                           label="Data de Nascimento"
-                          icon={<FaCalendarAlt className="text-gray-500 text-xs" />}
+                          icon={
+                            <FaCalendarAlt className="text-gray-500 text-xs" />
+                          }
                           type="date"
                           name="dataNascimento"
                           value={editFormData.dataNascimento}
@@ -448,7 +486,9 @@ export const Profile = () => {
                       <>
                         <ProfileInput
                           label="Logradouro"
-                          icon={<FaMapMarkerAlt className="text-gray-500 text-xs" />}
+                          icon={
+                            <FaMapMarkerAlt className="text-gray-500 text-xs" />
+                          }
                           type="text"
                           name="endereco"
                           value={editFormData.endereco}
@@ -460,7 +500,9 @@ export const Profile = () => {
 
                         <ProfileInput
                           label="Bairro"
-                          icon={<FaBuilding className="text-gray-500 text-xs" />}
+                          icon={
+                            <FaBuilding className="text-gray-500 text-xs" />
+                          }
                           type="text"
                           name="bairro"
                           value={editFormData.bairro}
@@ -482,7 +524,9 @@ export const Profile = () => {
 
                         <ProfileInput
                           label="Cidade"
-                          icon={<FaBuilding className="text-gray-500 text-xs" />}
+                          icon={
+                            <FaBuilding className="text-gray-500 text-xs" />
+                          }
                           type="text"
                           name="cidade"
                           value={editFormData.cidade}
@@ -614,45 +658,56 @@ export const Profile = () => {
 
             <div className="space-y-4">
               {events.length === 0 ? (
-                 <p className="text-gray-500 text-sm">Nenhum evento agendado.</p>
+                <p className="text-gray-500 text-sm">Nenhum evento agendado.</p>
               ) : (
                 events.map((event) => {
                   const eventDate = new Date(event.dataInicio);
-                  const month = eventDate.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
-                  const day = eventDate.getDate().toString().padStart(2, '0');
-                  const time = eventDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                  
+                  const month = eventDate
+                    .toLocaleString("pt-BR", { month: "short" })
+                    .replace(".", "");
+                  const day = eventDate.getDate().toString().padStart(2, "0");
+                  const time = eventDate.toLocaleTimeString("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+
                   // Check if user has a scale for this event
-                  const scale = userScales.find(s => 
-                    (s.eventoRel?.id === event.id)
+                  const scale = userScales.find(
+                    (s) => s.eventoRel?.id === event.id,
                   );
-          
+
                   return (
                     <div key={event.id} className="flex gap-4 items-start">
                       <div className="bg-[#252525] w-14 h-14 rounded-lg flex flex-col items-center justify-center border border-white/5 shrink-0">
                         <span className="text-[10px] uppercase text-gray-400 font-bold">
                           {month}
                         </span>
-                        <span className="text-xl font-bold text-white">{day}</span>
+                        <span className="text-xl font-bold text-white">
+                          {day}
+                        </span>
                       </div>
-                      <div className={`flex-1 bg-[#252525] p-4 rounded-lg border-l-4 ${scale ? 'border-secondary' : 'border-purple-500'}`}>
+                      <div
+                        className={`flex-1 bg-[#252525] p-4 rounded-lg border-l-4 ${scale ? "border-secondary" : "border-purple-500"}`}
+                      >
                         <div className="flex justify-between items-start mb-1">
-                          <h4 className="font-bold text-white">
-                            {event.nome}
-                          </h4>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
-                            scale 
-                              ? 'bg-secondary/20 text-secondary' 
-                              : 'bg-purple-500/20 text-purple-500'
-                          }`}>
-                            {scale ? 'Escalado' : 'Evento'}
+                          <h4 className="font-bold text-white">{event.nome}</h4>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                              scale
+                                ? "bg-secondary/20 text-secondary"
+                                : "bg-purple-500/20 text-purple-500"
+                            }`}
+                          >
+                            {scale ? "Escalado" : "Evento"}
                           </span>
                         </div>
                         <p className="text-sm text-gray-300 mb-2">
                           {scale ? (
                             <span className="flex items-center gap-1">
                               <span className="text-gray-400">Atividade:</span>
-                              <span className="text-secondary font-bold uppercase">{scale.atividade.name}</span>
+                              <span className="text-secondary font-bold uppercase">
+                                {scale.atividade.name}
+                              </span>
                             </span>
                           ) : (
                             event.descricao || "Evento da Igreja"
@@ -663,7 +718,8 @@ export const Profile = () => {
                             <FaClock /> {time}
                           </span>
                           <span className="flex items-center gap-1">
-                            <FaMapMarkerAlt /> {event.local || "Templo Principal"}
+                            <FaMapMarkerAlt />{" "}
+                            {event.local || "Templo Principal"}
                           </span>
                         </div>
                       </div>

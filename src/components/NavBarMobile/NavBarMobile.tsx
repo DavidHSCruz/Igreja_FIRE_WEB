@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 import Logo from "../../assets/LOGO_FIRE.svg?react";
 import { PopUpDOE } from "../PopUpDOE/PopUpDOE";
 
-import { SlMenu } from "react-icons/sl"
-import { CgClose, CgProfile } from "react-icons/cg"
-import { useAuth } from "../../contexts/AuthContext";
+import { SlMenu } from "react-icons/sl";
+import { CgClose, CgProfile } from "react-icons/cg";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { logout as logoutThunk } from "../../store/slices/authSlice";
 
 export const NavBarMobile = () => {
   const [visible, setVisible] = useState(true);
@@ -13,8 +14,10 @@ export const NavBarMobile = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const { pathname } = useLocation();
-  const { isAuthenticated, logout } = useAuth();
-  const isMemberArea = pathname.startsWith('/areamembro');
+  const dispatch = useAppDispatch();
+  const isAuthenticated = useAppSelector((state) => !!state.auth.user);
+  const isMemberArea = pathname.startsWith("/areamembro");
+  const handleLogout = () => dispatch(logoutThunk());
 
   useEffect(() => {
     let lastScrollY = window.scrollY;
@@ -35,14 +38,16 @@ export const NavBarMobile = () => {
 
   // Mapping for standard navigation items
   const routes: Record<string, string> = {
-    "HOME": "/",
+    HOME: "/",
     "NOSSA HISTÓRIA": "/historia",
     "GR's": "/grs",
   };
 
   // Given a label, return the corresponding route.
   function getRoute(nav: string) {
-    return routes[nav.toUpperCase()] || `/${nav.toLowerCase().replace(/'/g, "")}`;
+    return (
+      routes[nav.toUpperCase()] || `/${nav.toLowerCase().replace(/'/g, "")}`
+    );
   }
 
   // Check if the current path matches the nav item path.
@@ -86,7 +91,7 @@ export const NavBarMobile = () => {
                   <div className="border-t border-quaternary opacity-20 my-1"></div>
                   <button
                     onClick={() => {
-                      logout();
+                      handleLogout();
                       setProfileOpen(false);
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-quaternary hover:bg-zinc-800 transition-colors"

@@ -1,18 +1,25 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { api } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
-import {
-  FaArrowLeft,
-  FaSearch,
-  FaPlus,
-  FaTimes,
-} from 'react-icons/fa';
-import { PostList } from '../components/PostList/PostList';
-import { ScalesCarousel } from '../components/ScalesCarousel/ScalesCarousel';
-import { CreatePost } from '../components/CreatePost/CreatePost';
-import { CardMembro } from '../components/CardMembro/CardMembro';
-import { CreateScaleModal } from '../components/CreateScaleModal/CreateScaleModal';
+import { useEffect, useState } from "react";
+import type { AxiosError } from "axios";
+import { useParams, useNavigate } from "react-router-dom";
+import { api } from "../services/api";
+import { useAppSelector } from "../store/hooks";
+import { FaArrowLeft, FaSearch, FaPlus, FaTimes } from "react-icons/fa";
+import { PostList } from "../components/PostList/PostList";
+import { ScalesCarousel } from "../components/ScalesCarousel/ScalesCarousel";
+import { CreatePost } from "../components/CreatePost/CreatePost";
+import { CardMembro } from "../components/CardMembro/CardMembro";
+import { CreateScaleModal } from "../components/CreateScaleModal/CreateScaleModal";
+import type { ScaleGroup } from "../components/ScaleCard/ScaleCard";
+
+const getApiErrorMessage = (error: unknown): string | null => {
+  const axiosError = error as AxiosError<unknown>;
+  const data = axiosError.response?.data;
+  if (data && typeof data === "object" && "message" in data) {
+    const msg = (data as { message?: unknown }).message;
+    if (typeof msg === "string") return msg;
+  }
+  return null;
+};
 
 interface Member {
   id: string;
@@ -67,7 +74,7 @@ interface Scale {
       };
       color?: string;
     };
-    status: 'PENDENTE' | 'CONFIRMADO' | 'RECUSADO';
+    status: "PENDENTE" | "CONFIRMADO" | "RECUSADO";
   }[];
 }
 
@@ -87,7 +94,7 @@ interface TeamData {
 export const AreaMinisterioPage = () => {
   const { type, id } = useParams<{ type: string; id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const user = useAppSelector((state) => state.auth.user);
   const [data, setData] = useState<TeamData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [atividades, setAtividades] = useState<Atividade[]>([]);
@@ -97,109 +104,127 @@ export const AreaMinisterioPage = () => {
 
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [allMembers, setAllMembers] = useState<Member[]>([]);
-  const [newMemberId, setNewMemberId] = useState('');
-  const [newActivityId, setNewActivityId] = useState('');
-  const [newRole, setNewRole] = useState('VOLUNTARIO');
+  const [newMemberId, setNewMemberId] = useState("");
+  const [newActivityId, setNewActivityId] = useState("");
+  const [newRole, setNewRole] = useState("VOLUNTARIO");
   const [isCreateScaleModalOpen, setIsCreateScaleModalOpen] = useState(false);
-  const [editingScale, setEditingScale] = useState<any | null>(null);
+  const [editingScale, setEditingScale] = useState<ScaleGroup | null>(null);
   const [showAllMembers, setShowAllMembers] = useState(false);
 
-  const isLeader = user?.systemRole === 'ADMIN' || user?.systemRole === 'PASTOR' || 
-      (type === 'area' && user?.membro?.areas?.some(a => a.id === id && a.papel === 'LIDER')) ||
-      (type === 'ministerio' && user?.membro?.ministerios?.some(m => m.id === id && m.papel === 'LIDER'));
+  const isLeader =
+    user?.systemRole === "ADMIN" ||
+    user?.systemRole === "PASTOR" ||
+    (type === "area" &&
+      user?.membro?.areas?.some((a) => a.id === id && a.papel === "LIDER")) ||
+    (type === "ministerio" &&
+      user?.membro?.ministerios?.some(
+        (m) => m.id === id && m.papel === "LIDER",
+      ));
 
   const fetchPosts = async () => {
     try {
-        const response = await api.get(`/posts?${type === 'area' ? 'areaId' : 'ministerioId'}=${id}`);
-        setPosts(response.data);
+      const response = await api.get(
+        `/posts?${type === "area" ? "areaId" : "ministerioId"}=${id}`,
+      );
+      setPosts(response.data);
     } catch (error) {
-        console.error("Failed to fetch posts", error);
+      console.error("Failed to fetch posts", error);
     }
   };
 
   const openAddMemberModal = async () => {
     setIsAddMemberModalOpen(true);
     try {
-        const response = await api.get('/membros');
-        // Filter out members already in the team
-        const currentMemberIds = new Set(membros.map(m => m.id));
-        setAllMembers(response.data.filter((m: Member) => !currentMemberIds.has(m.id)));
+      const response = await api.get("/membros");
+      // Filter out members already in the team
+      const currentMemberIds = new Set(membros.map((m) => m.id));
+      setAllMembers(
+        response.data.filter((m: Member) => !currentMemberIds.has(m.id)),
+      );
     } catch (error) {
-        console.error("Error fetching all members:", error);
+      console.error("Error fetching all members:", error);
     }
   };
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMemberId || !newActivityId) {
-        alert("Selecione um membro e uma atividade.");
-        return;
+      alert("Selecione um membro e uma atividade.");
+      return;
     }
     try {
-        await api.post(`/membros/${newMemberId}/atuacoes`, {
-            papel: newRole,
-            atividadeId: newActivityId,
-            [type === 'area' ? 'areaId' : 'ministerioId']: id
-        });
-        alert("Membro adicionado com sucesso!");
-        setIsAddMemberModalOpen(false);
-        setNewMemberId('');
-        setNewActivityId('');
-        setNewRole('VOLUNTARIO');
-        window.location.reload();
-    } catch (error: any) {
-        console.error("Erro ao adicionar membro:", error);
-        alert(error.response?.data?.message || "Erro ao adicionar membro.");
+      await api.post(`/membros/${newMemberId}/atuacoes`, {
+        papel: newRole,
+        atividadeId: newActivityId,
+        [type === "area" ? "areaId" : "ministerioId"]: id,
+      });
+      alert("Membro adicionado com sucesso!");
+      setIsAddMemberModalOpen(false);
+      setNewMemberId("");
+      setNewActivityId("");
+      setNewRole("VOLUNTARIO");
+      window.location.reload();
+    } catch (error: unknown) {
+      console.error("Erro ao adicionar membro:", error);
+      alert(getApiErrorMessage(error) || "Erro ao adicionar membro.");
     }
   };
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const endpoint = type === 'area' ? `/areas/${id}` : `/ministerios/${id}`;
+        const endpoint =
+          type === "area" ? `/areas/${id}` : `/ministerios/${id}`;
         const response = await api.get(endpoint);
         const teamData = response.data;
         setData(teamData);
 
         // Fetch posts and scales
-        const postsReq = api.get(`/posts?${type === 'area' ? 'areaId' : 'ministerioId'}=${id}`)
-            .catch(err => {
-                console.error("Failed to fetch posts", err);
-                return { data: [] };
-            });
+        const postsReq = api
+          .get(`/posts?${type === "area" ? "areaId" : "ministerioId"}=${id}`)
+          .catch((err) => {
+            console.error("Failed to fetch posts", err);
+            return { data: [] };
+          });
 
         // Fetch atividades by area or ministerio
-        const atividadesReq = api.get(`/atividades?${type === 'area' ? 'areaId' : 'ministerioId'}=${id}`)
-            .catch(err => {
-                console.error("Failed to fetch atividades", err);
-                return { data: [] };
-            });
+        const atividadesReq = api
+          .get(
+            `/atividades?${type === "area" ? "areaId" : "ministerioId"}=${id}`,
+          )
+          .catch((err) => {
+            console.error("Failed to fetch atividades", err);
+            return { data: [] };
+          });
 
         // Fetch membros by area or ministerio
-        const membrosReq = api.get(`/membros/by-area-ministerio/${id}`)
-            .catch(err => {
-                console.error("Failed to fetch membros", err);
-                return { data: [] };
-            });
-        
-        const scalesReqs = teamData.atividades?.map((act: Atividade) => 
-            api.get(`/escalas?atividadeId=${act.id}`)
-               .then(res => ({ activityId: act.id, scales: res.data }))
-               .catch(() => ({ activityId: act.id, scales: [] }))
-        ) || [];
+        const membrosReq = api
+          .get(`/membros/by-area-ministerio/${id}`)
+          .catch((err) => {
+            console.error("Failed to fetch membros", err);
+            return { data: [] };
+          });
 
-        const [postsRes, atividadesRes, membrosRes, scalesRes] = await Promise.all([
+        const scalesReqs =
+          teamData.atividades?.map((act: Atividade) =>
+            api
+              .get(`/escalas?atividadeId=${act.id}`)
+              .then((res) => ({ activityId: act.id, scales: res.data }))
+              .catch(() => ({ activityId: act.id, scales: [] })),
+          ) || [];
+
+        const [postsRes, atividadesRes, membrosRes, scalesRes] =
+          await Promise.all([
             postsReq,
             atividadesReq,
             membrosReq,
-            Promise.all(scalesReqs)
-        ]);
+            Promise.all(scalesReqs),
+          ]);
 
         setPosts(postsRes.data);
         setActivityScales(scalesRes as ActivityScales[]);
         setAtividades(atividadesRes.data);
         setMembros(membrosRes.data);
-
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -211,162 +236,199 @@ export const AreaMinisterioPage = () => {
     }
   }, [type, id]);
 
-  if (loading) return <div className="min-h-screen bg-[#0F0F0F] text-white p-8 pt-32 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div></div>;
-  if (!data) return <div className="min-h-screen bg-[#0F0F0F] text-white p-8 pt-32 text-center">Não encontrado.</div>;
+  if (loading)
+    return (
+      <div className="min-h-screen bg-[#0F0F0F] text-white p-8 pt-32 flex justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      </div>
+    );
+  if (!data)
+    return (
+      <div className="min-h-screen bg-[#0F0F0F] text-white p-8 pt-32 text-center">
+        Não encontrado.
+      </div>
+    );
 
-  const groupedScales = activityScales.reduce((acc, as) => {
-    const activityName =
-      data.atividades?.find((a) => a.id === as.activityId)?.name || 'Atividade';
+  const groupedScales = activityScales.reduce(
+    (acc, as) => {
+      const activityName =
+        data.atividades?.find((a) => a.id === as.activityId)?.name ||
+        "Atividade";
 
-    as.scales.forEach((scale) => {
-      // Create a unique key for the event (Event Name + Date)
-      // Using date string to group same day events together
-      const dateKey = new Date(scale.data).toISOString().split('T')[0];
-      const key = `${scale.evento}-${dateKey}`;
+      as.scales.forEach((scale) => {
+        // Create a unique key for the event (Event Name + Date)
+        // Using date string to group same day events together
+        const dateKey = new Date(scale.data).toISOString().split("T")[0];
+        const key = `${scale.evento}-${dateKey}`;
 
-      if (!acc[key]) {
-        acc[key] = {
-          id: scale.id,
-          evento: scale.evento,
-          eventoId: scale.eventoRel?.id,
-          data: scale.data,
-          local: scale.local,
-          items: [],
-        };
-      }
+        if (!acc[key]) {
+          acc[key] = {
+            id: scale.id,
+            evento: scale.evento,
+            eventoId: scale.eventoRel?.id,
+            data: scale.data,
+            local: scale.local,
+            items: [],
+          };
+        }
 
-      // Add volunteers
-      if (scale.voluntarios && scale.voluntarios.length > 0) {
-        scale.voluntarios.forEach((vol) => {
-          acc[key].items.push({
-            name: vol.membro.nome,
-            role: activityName,
-            scaleId: scale.id,
-            status: vol.status,
-            membroId: vol.membro.id,
-            isCurrentUser: user?.membro?.id === vol.membro.id,
-            color: vol.membro.color,
-            avatarUrl: vol.membro.user?.avatarUrl
+        // Add volunteers
+        if (scale.voluntarios && scale.voluntarios.length > 0) {
+          scale.voluntarios.forEach((vol) => {
+            acc[key].items.push({
+              name: vol.membro.nome,
+              role: activityName,
+              scaleId: scale.id,
+              status: vol.status,
+              membroId: vol.membro.id,
+              isCurrentUser: user?.membro?.id === vol.membro.id,
+              color: vol.membro.color,
+              avatarUrl: vol.membro.user?.avatarUrl,
+            });
           });
-        });
-      } else {
-        // Se não houver voluntários, adiciona item placeholder "Disponível"
-         acc[key].items.push({
+        } else {
+          // Se não houver voluntários, adiciona item placeholder "Disponível"
+          acc[key].items.push({
             name: "Disponível",
             role: activityName,
             scaleId: scale.id,
-         });
+          });
+        }
+      });
+      return acc;
+    },
+    {} as Record<
+      string,
+      {
+        id: string;
+        evento: string;
+        eventoId?: string;
+        data: string;
+        local?: string;
+        items: {
+          name: string;
+          role: string;
+          scaleId?: string;
+          status?: "PENDENTE" | "CONFIRMADO" | "RECUSADO";
+          membroId?: string;
+          isCurrentUser?: boolean;
+          color?: string;
+          avatarUrl?: string;
+        }[];
       }
-    });
-    return acc;
-  }, {} as Record<string, { id: string; evento: string; eventoId?: string; data: string; local?: string; items: { name: string; role: string; scaleId?: string; status?: string; membroId?: string; isCurrentUser?: boolean; color?: string; avatarUrl?: string }[] }>);
+    >,
+  );
 
   const finalScales = Object.values(groupedScales).map((group) => {
     // Merge roles for the same person
-    const personMap = new Map<string, { 
-        name: string,
-        roles: Set<string>, 
-        scaleIds: Set<string>, 
-        status?: string, 
-        membroId?: string, 
-        isCurrentUser?: boolean,
-        color?: string,
-        avatarUrl?: string
-    }>();
-    
+    const personMap = new Map<
+      string,
+      {
+        name: string;
+        roles: Set<string>;
+        scaleIds: Set<string>;
+        status?: "PENDENTE" | "CONFIRMADO" | "RECUSADO";
+        membroId?: string;
+        isCurrentUser?: boolean;
+        color?: string;
+        avatarUrl?: string;
+      }
+    >();
+
     group.items.forEach((item) => {
-       let key: string;
-       if (item.name === "Disponível") {
-           key = `Disponível-${item.scaleId}`;
-       } else if (item.isCurrentUser) {
-           // Separate by scaleId to allow individual actions for current user
-           key = `${item.name}-${item.scaleId}`;
-       } else {
-           // Merge by name and status for others
-           key = `${item.name}-${item.status}`;
-       }
- 
-       if (!personMap.has(key)) {
-         personMap.set(key, { 
-             name: item.name,
-             roles: new Set(), 
-             scaleIds: new Set(),
-             status: item.status,
-             membroId: item.membroId,
-             isCurrentUser: item.isCurrentUser,
-             color: item.color,
-             avatarUrl: item.avatarUrl
-         });
-       }
-       personMap.get(key)!.roles.add(item.role); 
-       if (item.scaleId) personMap.get(key)!.scaleIds.add(item.scaleId);
+      let key: string;
+      if (item.name === "Disponível") {
+        key = `Disponível-${item.scaleId}`;
+      } else if (item.isCurrentUser) {
+        // Separate by scaleId to allow individual actions for current user
+        key = `${item.name}-${item.scaleId}`;
+      } else {
+        // Merge by name and status for others
+        key = `${item.name}-${item.status}`;
+      }
+
+      if (!personMap.has(key)) {
+        personMap.set(key, {
+          name: item.name,
+          roles: new Set(),
+          scaleIds: new Set(),
+          status: item.status,
+          membroId: item.membroId,
+          isCurrentUser: item.isCurrentUser,
+          color: item.color,
+          avatarUrl: item.avatarUrl,
+        });
+      }
+      personMap.get(key)!.roles.add(item.role);
+      if (item.scaleId) personMap.get(key)!.scaleIds.add(item.scaleId);
     });
 
-    const mergedItems = Array.from(personMap.values()).map(
-      (data) => {
-        // If multiple scaleIds (merged item), use the first one or undefined if ambiguous?
-        // For "Disponível" and "isCurrentUser", we ensured unique scaleId per item (mostly).
-        // For others, we merged. If we merged, we might have multiple scaleIds.
-        // ScaleCard expects a single scaleId.
-        const scaleId = data.scaleIds.size > 0 ? Array.from(data.scaleIds)[0] : undefined;
-        
-        return {
-            name: data.name,
-            roles: Array.from(data.roles).join(', '),
-            scaleId,
-            status: data.status as any,
-            membroId: data.membroId,
-            isCurrentUser: data.isCurrentUser,
-            color: data.color,
-            avatarUrl: data.avatarUrl
-        };
-      },
-    );
+    const mergedItems = Array.from(personMap.values()).map((data) => {
+      // If multiple scaleIds (merged item), use the first one or undefined if ambiguous?
+      // For "Disponível" and "isCurrentUser", we ensured unique scaleId per item (mostly).
+      // For others, we merged. If we merged, we might have multiple scaleIds.
+      // ScaleCard expects a single scaleId.
+      const scaleId =
+        data.scaleIds.size > 0 ? Array.from(data.scaleIds)[0] : undefined;
+
+      return {
+        name: data.name,
+        roles: Array.from(data.roles).join(", "),
+        scaleId,
+        status: data.status,
+        membroId: data.membroId,
+        isCurrentUser: data.isCurrentUser,
+        color: data.color,
+        avatarUrl: data.avatarUrl,
+      };
+    });
 
     return { ...group, items: mergedItems, originalItems: group.items };
   });
 
   // Sort by date (ascending)
-  finalScales.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+  finalScales.sort(
+    (a, b) => new Date(a.data).getTime() - new Date(b.data).getTime(),
+  );
 
   const handleJoinScale = async (scaleId: string) => {
     try {
-        if (!user?.membro?.id) {
-            alert("Erro: Usuário não identificado como membro.");
-            return;
-        }
-        
-        const confirmJoin = window.confirm("Deseja entrar nesta escala?");
-        if (!confirmJoin) return;
+      if (!user?.membro?.id) {
+        alert("Erro: Usuário não identificado como membro.");
+        return;
+      }
 
-        await api.post(`/escalas/${scaleId}/voluntarios`, {
-            membroId: user.membro.id
-        });
-        
-        alert("Você entrou na escala com sucesso! Atualize a página.");
-        window.location.reload(); // Simple reload to refresh data
-    } catch (error: any) {
-        console.error("Erro ao entrar na escala:", error);
-        alert(error.response?.data?.message || "Erro ao entrar na escala.");
+      const confirmJoin = window.confirm("Deseja entrar nesta escala?");
+      if (!confirmJoin) return;
+
+      await api.post(`/escalas/${scaleId}/voluntarios`, {
+        membroId: user.membro.id,
+      });
+
+      alert("Você entrou na escala com sucesso! Atualize a página.");
+      window.location.reload(); // Simple reload to refresh data
+    } catch (error: unknown) {
+      console.error("Erro ao entrar na escala:", error);
+      alert(getApiErrorMessage(error) || "Erro ao entrar na escala.");
     }
   };
 
   const handleConfirmScale = async (scaleId: string, membroId: string) => {
     try {
-        const confirm = window.confirm("Confirmar presença nesta escala?");
-        if (!confirm) return;
+      const confirm = window.confirm("Confirmar presença nesta escala?");
+      if (!confirm) return;
 
-        await api.patch(`/escalas/${scaleId}/voluntarios/${membroId}/confirm`);
-        
-        alert("Presença confirmada!");
-        window.location.reload();
-    } catch (error: any) {
-        console.error("Erro ao confirmar:", error);
-        alert(error.response?.data?.message || "Erro ao confirmar.");
+      await api.patch(`/escalas/${scaleId}/voluntarios/${membroId}/confirm`);
+
+      alert("Presença confirmada!");
+      window.location.reload();
+    } catch (error: unknown) {
+      console.error("Erro ao confirmar:", error);
+      alert(getApiErrorMessage(error) || "Erro ao confirmar.");
     }
   };
 
-  const handleEditScale = (scale: any) => {
+  const handleEditScale = (scale: ScaleGroup) => {
     setEditingScale(scale);
     setIsCreateScaleModalOpen(true);
   };
@@ -388,18 +450,21 @@ export const AreaMinisterioPage = () => {
             <div className="bg-[#161616] rounded-xl overflow-hidden border border-white/5 flex flex-col h-full">
               <div className="bg-[#ff3b3f] px-5 py-4">
                 <span className="text-xs font-semibold uppercase tracking-wide">
-                  {type === 'area' ? 'Área de Atuação' : 'Ministério'}
+                  {type === "area" ? "Área de Atuação" : "Ministério"}
                 </span>
-                <h1 className="text-lg font-bold leading-tight mt-1">{data.name}</h1>
+                <h1 className="text-lg font-bold leading-tight mt-1">
+                  {data.name}
+                </h1>
               </div>
 
               <div className="px-6 py-5 flex-1 flex flex-col">
                 <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/10">
-                  <h2 className="text-sm text-gray-200">
-                    Equipe
-                  </h2>
+                  <h2 className="text-sm text-gray-200">Equipe</h2>
                   {isLeader && (
-                    <button onClick={openAddMemberModal} className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded flex items-center gap-1 transition-colors">
+                    <button
+                      onClick={openAddMemberModal}
+                      className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded flex items-center gap-1 transition-colors"
+                    >
                       <FaPlus /> Add
                     </button>
                   )}
@@ -407,24 +472,29 @@ export const AreaMinisterioPage = () => {
 
                 <div className="space-y-3 flex-1">
                   {membros.length > 0 ? (
-                    (showAllMembers ? membros : membros.slice(0, 3)).map((membro, index) => {
-                      const defaultColor = index % 2 === 0 ? '#EA3539' : '#9B59B6';
-                      const roles = membro.atuacoes.map(a => `${a.papel}, ${a.atividade.name}`).join(', ');
-                      
-                      return (
-                        <CardMembro
-                          key={membro.id}
-                          item={{
-                            name: membro.nome,
-                            roles: roles,
-                            membroId: membro.id,
-                            avatarUrl: membro.user?.avatarUrl,
-                            color: membro.color
-                          }}
-                          defaultColor={defaultColor}
-                        />
-                      );
-                    })
+                    (showAllMembers ? membros : membros.slice(0, 3)).map(
+                      (membro, index) => {
+                        const defaultColor =
+                          index % 2 === 0 ? "#EA3539" : "#9B59B6";
+                        const roles = membro.atuacoes
+                          .map((a) => `${a.papel}, ${a.atividade.name}`)
+                          .join(", ");
+
+                        return (
+                          <CardMembro
+                            key={membro.id}
+                            item={{
+                              name: membro.nome,
+                              roles: roles,
+                              membroId: membro.id,
+                              avatarUrl: membro.user?.avatarUrl,
+                              color: membro.color,
+                            }}
+                            defaultColor={defaultColor}
+                          />
+                        );
+                      },
+                    )
                   ) : (
                     <p className="text-gray-500 text-sm italic text-center">
                       Nenhum membro vinculado.
@@ -433,7 +503,7 @@ export const AreaMinisterioPage = () => {
                 </div>
 
                 {membros.length > 3 && (
-                  <button 
+                  <button
                     onClick={() => setShowAllMembers(!showAllMembers)}
                     className="w-full mt-6 pt-3 border-t border-white/10 text-center text-xs text-gray-400 hover:text-white transition-colors"
                   >
@@ -477,10 +547,10 @@ export const AreaMinisterioPage = () => {
           </div>
 
           <section className="space-y-6">
-            <ScalesCarousel 
-              scales={finalScales} 
-              onJoin={handleJoinScale} 
-              onConfirm={handleConfirmScale} 
+            <ScalesCarousel
+              scales={finalScales}
+              onJoin={handleJoinScale}
+              onConfirm={handleConfirmScale}
               onCreateScale={() => {
                 setEditingScale(null);
                 setIsCreateScaleModalOpen(true);
@@ -489,10 +559,10 @@ export const AreaMinisterioPage = () => {
             />
           </section>
 
-          <CreatePost 
-            onPostCreated={fetchPosts} 
-            defaultType={type as "area" | "ministerio"} 
-            defaultTargetId={id} 
+          <CreatePost
+            onPostCreated={fetchPosts}
+            defaultType={type as "area" | "ministerio"}
+            defaultTargetId={id}
             fixedContext={true}
             contextName={data?.name}
           />
@@ -510,10 +580,14 @@ export const AreaMinisterioPage = () => {
             >
               <FaTimes />
             </button>
-            <h3 className="text-xl font-bold mb-6 text-white">Adicionar Membro</h3>
+            <h3 className="text-xl font-bold mb-6 text-white">
+              Adicionar Membro
+            </h3>
             <form onSubmit={handleAddMember} className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Membro</label>
+                <label className="block text-sm text-gray-400 mb-1">
+                  Membro
+                </label>
                 <select
                   value={newMemberId}
                   onChange={(e) => setNewMemberId(e.target.value)}
@@ -530,7 +604,9 @@ export const AreaMinisterioPage = () => {
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Atividade</label>
+                <label className="block text-sm text-gray-400 mb-1">
+                  Atividade
+                </label>
                 <select
                   value={newActivityId}
                   onChange={(e) => setNewActivityId(e.target.value)}
@@ -547,7 +623,9 @@ export const AreaMinisterioPage = () => {
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Papel</label>
+                <label className="block text-sm text-gray-400 mb-1">
+                  Papel
+                </label>
                 <select
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value)}
@@ -571,14 +649,14 @@ export const AreaMinisterioPage = () => {
         </div>
       )}
 
-      <CreateScaleModal 
+      <CreateScaleModal
         isOpen={isCreateScaleModalOpen}
         onClose={() => {
           setIsCreateScaleModalOpen(false);
           setEditingScale(null);
         }}
-        contextId={id || ''}
-        contextType={type as 'area' | 'ministerio'}
+        contextId={id || ""}
+        contextType={type as "area" | "ministerio"}
         initialData={editingScale}
       />
     </div>

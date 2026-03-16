@@ -1,7 +1,7 @@
-import { useRef, useState, MouseEvent } from 'react';
-import { FaChevronLeft, FaChevronRight, FaPlus } from 'react-icons/fa';
-import { ScaleCard, ScaleGroup } from '../ScaleCard/ScaleCard';
-import { useAuth } from '../../contexts/AuthContext';
+import { useRef, useState, MouseEvent } from "react";
+import { FaChevronLeft, FaChevronRight, FaPlus } from "react-icons/fa";
+import { ScaleCard, ScaleGroup } from "../ScaleCard/ScaleCard";
+import { useAppSelector } from "../../store/hooks";
 
 interface ScalesCarouselProps {
   scales: ScaleGroup[];
@@ -12,23 +12,31 @@ interface ScalesCarouselProps {
   onEditScale?: (scale: ScaleGroup) => void;
 }
 
-export const ScalesCarousel = ({ scales, titulo = 'Escalas', onJoin, onConfirm, onCreateScale, onEditScale }: ScalesCarouselProps) => {
-  const { user } = useAuth();
+export const ScalesCarousel = ({
+  scales,
+  titulo = "Escalas",
+  onJoin,
+  onConfirm,
+  onCreateScale,
+  onEditScale,
+}: ScalesCarouselProps) => {
+  const user = useAppSelector((state) => state.auth.user);
   const carouselRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
 
-  const allowedRoles = ['ADMIN', 'PASTOR', 'LIDER'];
-  const canCreateScale = user?.systemRole && allowedRoles.includes(user.systemRole);
+  const allowedRoles = ["ADMIN", "PASTOR", "LIDER"];
+  const canCreateScale =
+    user?.systemRole && allowedRoles.includes(user.systemRole);
 
-  const scroll = (direction: 'left' | 'right') => {
+  const scroll = (direction: "left" | "right") => {
     if (carouselRef.current) {
       const { current } = carouselRef;
       const scrollAmount = current.clientWidth / 2; // Scroll half view width
       current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth',
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
       });
     }
   };
@@ -63,7 +71,11 @@ export const ScalesCarousel = ({ scales, titulo = 'Escalas', onJoin, onConfirm, 
           <h3 className="text-sm text-gray-300">{titulo}</h3>
           {canCreateScale && (
             <button
-              onClick={onCreateScale || (() => alert('Funcionalidade de criar escala em desenvolvimento'))}
+              onClick={
+                onCreateScale ||
+                (() =>
+                  alert("Funcionalidade de criar escala em desenvolvimento"))
+              }
               className="flex items-center gap-1 text-[10px] bg-green-600/20 hover:bg-green-600/30 text-green-500 hover:text-green-400 px-2 py-0.5 rounded-full transition-colors border border-green-600/20"
               title="Criar nova escala"
             >
@@ -74,13 +86,13 @@ export const ScalesCarousel = ({ scales, titulo = 'Escalas', onJoin, onConfirm, 
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => scroll('left')}
+            onClick={() => scroll("left")}
             className="bg-[#202020] hover:bg-[#303030] p-2 rounded-full text-white transition-colors border border-white/10"
           >
             <FaChevronLeft size={10} />
           </button>
           <button
-            onClick={() => scroll('right')}
+            onClick={() => scroll("right")}
             className="bg-[#202020] hover:bg-[#303030] p-2 rounded-full text-white transition-colors border border-white/10"
           >
             <FaChevronRight size={10} />
@@ -91,7 +103,7 @@ export const ScalesCarousel = ({ scales, titulo = 'Escalas', onJoin, onConfirm, 
       <div
         ref={carouselRef}
         className="flex gap-6 overflow-x-auto pb-4 cursor-grab active:cursor-grabbing select-none scrollbar-hide"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         onMouseDown={handleMouseDown}
         onMouseLeave={handleMouseLeave}
         onMouseUp={handleMouseUp}

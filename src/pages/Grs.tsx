@@ -2,19 +2,19 @@ import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { FaUsers, FaBible, FaHeart, FaHome, FaSearch, FaArrowRight } from "react-icons/fa";
 
-export const Grs = () => {
-  const images = [
-    "/img/celulas/gr1.jpeg",
-    "/img/celulas/gr2.jpeg",
-    "/img/celulas/gr3.jpeg",
-    "/img/celulas/gr4.jpeg"
-  ];
+const IMAGES = [
+  "/img/celulas/gr1.jpeg",
+  "/img/celulas/gr2.jpeg",
+  "/img/celulas/gr3.jpeg",
+  "/img/celulas/gr4.jpeg",
+];
 
+export const Grs = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentImageIndex((prev) => (prev + 1) % images.length);
+      setCurrentImageIndex((prev) => (prev + 1) % IMAGES.length);
     }, 4000);
 
     return () => clearInterval(interval);
@@ -115,7 +115,7 @@ export const Grs = () => {
                 <div className="absolute inset-0 bg-gradient-to-r from-[#161616] to-transparent z-10 md:w-20 hidden md:block"></div>
                 <div className="absolute inset-0 bg-gradient-to-t from-[#161616] to-transparent z-10 md:hidden"></div>
                 <div className="relative w-full h-full">
-                  {images.map((img, index) => (
+                  {IMAGES.map((img, index) => (
                     <img 
                       key={img}
                       src={img} 
@@ -128,7 +128,7 @@ export const Grs = () => {
                   
                   {/* Dots Navigation */}
                   <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-center gap-2">
-                    {images.map((_, index) => (
+                    {IMAGES.map((_, index) => (
                       <button
                         key={index}
                         onClick={() => setCurrentImageIndex(index)}

@@ -1,11 +1,13 @@
 import { FaUser, FaChevronLeft, FaChevronRight, FaPen } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import React, { useEffect, useState } from "react";
-import { useAuth, User } from "../../contexts/AuthContext";
+import type { User } from "../../types/User";
 import { UserAvatar } from "../UserAvatar/UserAvatar";
 
 import { ActivityItem } from "./ActivityItem";
 import { api } from "../../services/api";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { updateUserAndPersist } from "../../store/slices/authSlice";
 
 export interface Activity {
   name: string;
@@ -24,37 +26,49 @@ interface MemberProfileCardProps {
 export const MemberProfileCard: React.FC<MemberProfileCardProps> = ({
   isProfilePage = false,
   user,
-  activities: propActivities
+  activities: propActivities,
 }) => {
-
   const memberMinisterios = user?.membro?.ministerios || [];
   const memberAreas = user?.membro?.areas || [];
 
-  const { user: loggedUser, updateLocalUser } = useAuth();
+  const dispatch = useAppDispatch();
+  const loggedUser = useAppSelector((state) => state.auth.user);
 
-  const [currentView, setCurrentView] = useState<"Áreas" | "Ministérios" | "Cursos">("Áreas");
-  const [headerColor, setHeaderColor] = useState(user?.membro?.color || "#D63031"); // Default red if no color
-  
-  const [allMinisterios, setAllMinisterios] = useState<any[]>([]);
-  const [allAreas, setAllAreas] = useState<any[]>([]);
+  const [currentView, setCurrentView] = useState<
+    "Áreas" | "Ministérios" | "Cursos"
+  >("Áreas");
+  const [headerColor, setHeaderColor] = useState(
+    user?.membro?.color || "#D63031",
+  ); // Default red if no color
 
-  const isAdminOrPastor = user?.systemRole === 'ADMIN' || user?.systemRole === 'PASTOR';
+  const [allMinisterios, setAllMinisterios] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [allAreas, setAllAreas] = useState<Array<{ id: string; name: string }>>(
+    [],
+  );
+
+  const isAdminOrPastor =
+    user?.systemRole === "ADMIN" || user?.systemRole === "PASTOR";
 
   useEffect(() => {
     if (isAdminOrPastor && !propActivities) {
-        const fetchAll = async () => {
-            try {
-                const [areasRes, ministeriosRes] = await Promise.all([
-                    api.get('/areas'),
-                    api.get('/ministerios')
-                ]);
-                setAllAreas(areasRes.data);
-                setAllMinisterios(ministeriosRes.data);
-            } catch (error) {
-                console.error("Error fetching all areas/ministerios for admin/pastor", error);
-            }
-        };
-        fetchAll();
+      const fetchAll = async () => {
+        try {
+          const [areasRes, ministeriosRes] = await Promise.all([
+            api.get("/areas"),
+            api.get("/ministerios"),
+          ]);
+          setAllAreas(areasRes.data);
+          setAllMinisterios(ministeriosRes.data);
+        } catch (error) {
+          console.error(
+            "Error fetching all areas/ministerios for admin/pastor",
+            error,
+          );
+        }
+      };
+      fetchAll();
     }
   }, [user, isAdminOrPastor, propActivities]);
 
@@ -67,37 +81,39 @@ export const MemberProfileCard: React.FC<MemberProfileCardProps> = ({
     setHeaderColor(newColor);
 
     if (user?.membro?.id && loggedUser) {
-        // Atualização otimista local para refletir a mudança imediatamente
-        if (updateLocalUser) {
-             const updatedUser = {
-                 ...loggedUser,
-                 membro: {
-                     ...loggedUser.membro!,
-                     color: newColor
-                 }
-             };
-             updateLocalUser(updatedUser);
-        }
+      // Atualização otimista local para refletir a mudança imediatamente
+      const updatedUser = {
+        ...loggedUser,
+        membro: {
+          ...loggedUser.membro!,
+          color: newColor,
+        },
+      };
+      dispatch(updateUserAndPersist(updatedUser));
 
-        try {
-            await api.patch(`/membros/${user.membro.id}`, { color: newColor });
-        } catch (error) {
-            console.error("Failed to update color", error);
-        }
+      try {
+        await api.patch(`/membros/${user.membro.id}`, { color: newColor });
+      } catch (error) {
+        console.error("Failed to update color", error);
+      }
     }
   };
 
-  const targetMinisterios = (isAdminOrPastor && allMinisterios.length > 0) ? allMinisterios : memberMinisterios;
-  const targetAreas = (isAdminOrPastor && allAreas.length > 0) ? allAreas : memberAreas;
+  const targetMinisterios =
+    isAdminOrPastor && allMinisterios.length > 0
+      ? allMinisterios
+      : memberMinisterios;
+  const targetAreas =
+    isAdminOrPastor && allAreas.length > 0 ? allAreas : memberAreas;
 
   const computedActivities: Activity[] = [
-    ...targetMinisterios.map((m: any) => ({
+    ...targetMinisterios.map((m) => ({
       name: m.name,
       icon: <FaUser className="text-sm" />,
       link: `/areamembro/details/ministerio/${m.id}`,
       type: "ministerio" as const,
     })),
-    ...targetAreas.map((a: any) => ({
+    ...targetAreas.map((a) => ({
       name: a.name,
       icon: <FaUser className="text-sm" />,
       link: `/areamembro/details/area/${a.id}`,
@@ -128,19 +144,19 @@ export const MemberProfileCard: React.FC<MemberProfileCardProps> = ({
   const handleNext = () => {
     if (currentView === "Áreas") setCurrentView("Ministérios");
     else if (currentView === "Ministérios") setCurrentView("Cursos");
-    else  setCurrentView("Áreas");
+    else setCurrentView("Áreas");
   };
 
   if (!user) {
-      return (
-          <div className="bg-[#161616] rounded-xl flex flex-col items-center text-center overflow-hidden border border-white/5 p-6">
-              <div className="animate-pulse flex flex-col items-center w-full">
-                  <div className="w-20 h-20 bg-white/10 rounded-full mb-4"></div>
-                  <div className="h-4 bg-white/10 rounded w-1/2 mb-2"></div>
-                  <div className="h-3 bg-white/10 rounded w-1/3"></div>
-              </div>
-          </div>
-      );
+    return (
+      <div className="bg-[#161616] rounded-xl flex flex-col items-center text-center overflow-hidden border border-white/5 p-6">
+        <div className="animate-pulse flex flex-col items-center w-full">
+          <div className="w-20 h-20 bg-white/10 rounded-full mb-4"></div>
+          <div className="h-4 bg-white/10 rounded w-1/2 mb-2"></div>
+          <div className="h-3 bg-white/10 rounded w-1/3"></div>
+        </div>
+      </div>
+    );
   }
 
   const isMember = user?.membro;
@@ -152,34 +168,36 @@ export const MemberProfileCard: React.FC<MemberProfileCardProps> = ({
   return (
     <div className="bg-[#161616] rounded-xl flex flex-col items-center text-center overflow-hidden border border-white/5">
       {/* Cabeçalho com cor dinâmica */}
-      <div 
+      <div
         className="w-full h-24 relative transition-colors duration-300"
         style={{ backgroundColor: headerColor }}
       >
         {isProfilePage && isMember && loggedUser?.id === user?.id && (
-            <div className="absolute top-2 right-2 z-10">
-                <label className="cursor-pointer bg-black/40 hover:bg-black/60 p-2 rounded-full transition-colors flex items-center justify-center backdrop-blur-sm group">
-                    <FaPen className="text-white/80 group-hover:text-white text-xs" />
-                    <input 
-                        type="color" 
-                        value={headerColor}
-                        onChange={handleColorChange}
-                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    />
-                </label>
-            </div>
+          <div className="absolute top-2 right-2 z-10">
+            <label className="cursor-pointer bg-black/40 hover:bg-black/60 p-2 rounded-full transition-colors flex items-center justify-center backdrop-blur-sm group">
+              <FaPen className="text-white/80 group-hover:text-white text-xs" />
+              <input
+                type="color"
+                value={headerColor}
+                onChange={handleColorChange}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              />
+            </label>
+          </div>
         )}
 
         <div className="absolute -bottom-10 left-1/2 -translate-x-1/2">
-          <UserAvatar 
-            user={user} 
-            size="w-20 h-20" 
+          <UserAvatar
+            user={user}
+            size="w-20 h-20"
             iconSize="text-4xl"
-            editable={!!(isProfilePage && isMember && loggedUser?.id === user?.id)}
+            editable={
+              !!(isProfilePage && isMember && loggedUser?.id === user?.id)
+            }
             onUploadSuccess={(newUrl) => {
-                if (loggedUser && loggedUser.id === user?.id && updateLocalUser) {
-                    updateLocalUser({ ...loggedUser, avatarUrl: newUrl });
-                }
+              if (loggedUser && loggedUser.id === user?.id) {
+                dispatch(updateUserAndPersist({ ...loggedUser, avatarUrl: newUrl }));
+              }
             }}
           />
         </div>

@@ -1,7 +1,8 @@
-import React, { useRef, useState } from 'react';
-import { FaUser, FaCamera, FaSpinner } from 'react-icons/fa';
-import { api } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
+import React, { useRef, useState } from "react";
+import { FaUser, FaCamera, FaSpinner } from "react-icons/fa";
+import { api } from "../../services/api";
+import { useAppDispatch } from "../../store/hooks";
+import { refreshUser } from "../../store/slices/authSlice";
 
 interface UserAvatarProps {
   user?: {
@@ -25,11 +26,11 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   className = "",
   editable = false,
   hasBorder = true,
-  onUploadSuccess
+  onUploadSuccess,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
-  const { refreshUser } = useAuth();
+  const dispatch = useAppDispatch();
   const [imageError, setImageError] = useState(false);
 
   // Reset error when avatarUrl changes
@@ -43,7 +44,9 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     }
   };
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -63,25 +66,22 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
 
     try {
       const formData = new FormData();
-      formData.append('photo', file);
+      formData.append("photo", file);
 
-      const response = await api.post('/users/avatar', formData, {
+      const response = await api.post("/users/avatar", formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          "Content-Type": "multipart/form-data",
         },
       });
 
       const newAvatarUrl = response.data.avatarUrl;
-      
+
       if (onUploadSuccess) {
         onUploadSuccess(newAvatarUrl);
       }
-      
-      // Also refresh global user context
-      if (refreshUser) {
-        await refreshUser();
-      }
 
+      // Also refresh global user context
+      await dispatch(refreshUser()).unwrap();
     } catch (error) {
       console.error("Error uploading avatar:", error);
       alert("Erro ao fazer upload da imagem. Tente novamente.");
@@ -89,22 +89,24 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
       setLoading(false);
       // Reset input
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
 
   return (
-    <div 
-      className={`relative rounded-full bg-white flex items-center justify-center ${hasBorder ? 'border-4 border-[#161616]' : ''} overflow-hidden ${size} ${className} ${editable ? 'cursor-pointer group' : ''}`}
+    <div
+      className={`relative rounded-full bg-white flex items-center justify-center ${hasBorder ? "border-4 border-[#161616]" : ""} overflow-hidden ${size} ${className} ${editable ? "cursor-pointer group" : ""}`}
       onClick={handleClick}
     >
       {loading ? (
-        <FaSpinner className={`animate-spin text-black ${iconSize.replace('text-', 'text-base')}`} />
+        <FaSpinner
+          className={`animate-spin text-black ${iconSize.replace("text-", "text-base")}`}
+        />
       ) : user?.avatarUrl && !imageError ? (
-        <img 
-          src={user.avatarUrl} 
-          alt={user.membro?.nome || "Avatar"} 
+        <img
+          src={user.avatarUrl}
+          alt={user.membro?.nome || "Avatar"}
           className="w-full h-full object-cover"
           onError={() => setImageError(true)}
         />
