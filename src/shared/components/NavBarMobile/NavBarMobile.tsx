@@ -1,23 +1,17 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
-import Logo from "../../assets/LOGO_FIRE.svg?react";
+import Logo from "../../../assets/LOGO_FIRE.svg?react";
 import { PopUpDOE } from "../PopUpDOE/PopUpDOE";
 
 import { SlMenu } from "react-icons/sl";
-import { CgClose, CgProfile } from "react-icons/cg";
-import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { logout as logoutThunk } from "../../store/slices/authSlice";
+import { CgClose } from "react-icons/cg";
 
 export const NavBarMobile = () => {
   const [visible, setVisible] = useState(true);
   const [doeVisible, setDoeVisible] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
   const { pathname } = useLocation();
-  const dispatch = useAppDispatch();
-  const isAuthenticated = useAppSelector((state) => !!state.auth.user);
-  const isMemberArea = pathname.startsWith("/areamembro");
-  const handleLogout = () => dispatch(logoutThunk());
+  const socialUrl = (import.meta.env.VITE_SOCIAL_URL as string | undefined) || "http://localhost:5174/";
 
   useEffect(() => {
     let lastScrollY = window.scrollY;
@@ -64,44 +58,6 @@ export const NavBarMobile = () => {
       <div className="flex items-center justify-between h-16 px-4 transition-transform">
         <Logo className="w-20 h-full text-secondary" />
         <div className="flex items-center gap-4">
-          {isMemberArea && isAuthenticated && (
-            <div className="relative">
-              <button
-                onClick={() => setProfileOpen(!profileOpen)}
-                className="text-quaternary hover:text-white transition-colors flex items-center"
-              >
-                <CgProfile size={28} />
-              </button>
-              {profileOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-primary border border-quaternary rounded-lg shadow-xl py-2 z-50">
-                  <Link
-                    to="/areamembro/profile"
-                    className="block px-4 py-2 text-sm text-quaternary hover:bg-zinc-800 transition-colors"
-                    onClick={() => setProfileOpen(false)}
-                  >
-                    Profile
-                  </Link>
-                  <Link
-                    to="/areamembro/configuracoes"
-                    className="block px-4 py-2 text-sm text-quaternary hover:bg-zinc-800 transition-colors"
-                    onClick={() => setProfileOpen(false)}
-                  >
-                    Configurações
-                  </Link>
-                  <div className="border-t border-quaternary opacity-20 my-1"></div>
-                  <button
-                    onClick={() => {
-                      handleLogout();
-                      setProfileOpen(false);
-                    }}
-                    className="block w-full text-left px-4 py-2 text-sm text-quaternary hover:bg-zinc-800 transition-colors"
-                  >
-                    Logout
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Toggle menu"
@@ -153,13 +109,13 @@ export const NavBarMobile = () => {
               <PopUpDOE visible={doeVisible} setVisible={setDoeVisible} />
             </li>
             <li className="py-2 w-full text-center border-b border-quaternary bg-quaternary/90">
-              <Link
-                to="/areamembro"
+              <a
+                href={socialUrl}
                 onClick={() => setMenuOpen(false)}
                 className="block w-full text-primary font-bold"
               >
                 ÁREA DO MEMBRO
-              </Link>
+              </a>
             </li>
           </ul>
         </nav>

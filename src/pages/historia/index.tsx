@@ -1,6 +1,6 @@
 import { FaHistory, FaGlobeAmericas, FaQuoteLeft } from "react-icons/fa";
-import LeaoIcon from "../assets/leao.svg?react"
-import CoroaIcon from "../assets/coroa.svg?react"
+import LeaoIcon from "../../assets/leao.svg?react"
+import CoroaIcon from "../../assets/coroa.svg?react"
 
 export const Historia = () => {
   return (

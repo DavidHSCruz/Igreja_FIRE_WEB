@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import LogoLeao from '../../assets/leao.svg?react'
+import LogoLeao from '../../../../assets/leao.svg?react'
 import { YoutubeVideo } from '../YoutubeVideo/YoutubeVideo'
 import { Card } from './Card/Card'
 import { FaArrowRight } from 'react-icons/fa';

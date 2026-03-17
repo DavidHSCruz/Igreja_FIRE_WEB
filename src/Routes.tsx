@@ -7,19 +7,13 @@ import {
 } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-import { NavBar } from "./components/NavBar/NavBar";
-import { NavBarMobile } from "./components/NavBarMobile/NavBarMobile";
-import { Footer } from "./components/Footer/Footer";
+import { NavBar } from "./shared/components/NavBar/NavBar";
+import { NavBarMobile } from "./shared/components/NavBarMobile/NavBarMobile";
+import { Footer } from "./shared/components/Footer/Footer";
 
-import { Home } from "./pages/Home";
-import { Historia } from "./pages/Historia";
-import { Grs } from "./pages/Grs";
-import { AreaMembro } from "./pages/AreaMembro";
-import { Profile } from "./pages/Profile";
-import { LoginMembro } from "./pages/LoginMembro";
-import { AreaMinisterioPage } from "./pages/AreaMinisterioPage";
-import { useAppSelector } from "./store/hooks";
-import { MinhaIgreja } from "./pages/MinhaIgreja";
+import { Home } from "./pages/home";
+import { Historia } from "./pages/historia";
+import { Grs } from "./pages/grs";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -54,91 +48,33 @@ function App() {
   );
 }
 
+function ExternalRedirect({ to }: { to: string }) {
+  useEffect(() => {
+    window.location.assign(to);
+  }, [to]);
+
+  return null;
+}
+
 function AppContent({ width }: { width: number }) {
-  const { pathname } = useLocation();
-  const user = useAppSelector((state) => state.auth.user);
-  const isMemberArea = pathname.startsWith("/areamembro");
-
-  const allowedRolesMinhaIgreja = ["PASTOR", "DIACONO", "ADMIN"];
-  const hasMinhaIgrejaAccess =
-    user?.systemRole && allowedRolesMinhaIgreja.includes(user.systemRole);
-
-  function RequireAuth({ children }: { children: JSX.Element }) {
-    const authedUser = useAppSelector((state) => state.auth.user);
-    const loading = useAppSelector((state) => state.auth.bootstrapping);
-
-    if (loading) {
-      return null;
-    }
-
-    if (!authedUser) {
-      return <Navigate to="/areamembro/login" replace />;
-    }
-
-    return children;
-  }
+  const socialUrl =
+    (import.meta.env.VITE_SOCIAL_URL as string | undefined) ||
+    "http://localhost:5174/";
 
   return (
     <>
-      {width >= 768 ? <NavBar /> : !isMemberArea && <NavBarMobile />}
+      {width >= 768 ? <NavBar /> : <NavBarMobile />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/historia" element={<Historia />} />
         <Route path="/grs" element={<Grs />} />
         <Route
-          path="/areamembro"
-          element={
-            <RequireAuth>
-              <AreaMembro />
-            </RequireAuth>
-          }
+          path="/areamembro/*"
+          element={<ExternalRedirect to={socialUrl} />}
         />
-        <Route path="/areamembro/login" element={<LoginMembro />} />
-        <Route
-          path="/areamembro/profile"
-          element={
-            <RequireAuth>
-              {!user?.membro ? (
-                <Navigate to="/areamembro" replace />
-              ) : (
-                <Profile />
-              )}
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/areamembro/minha-igreja"
-          element={
-            <RequireAuth>
-              {hasMinhaIgrejaAccess ? (
-                <MinhaIgreja />
-              ) : (
-                <Navigate to="/areamembro" replace />
-              )}
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/areamembro/details/:type/:id"
-          element={
-            <RequireAuth>
-              <AreaMinisterioPage />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/areamembro/configuracoes"
-          element={
-            <RequireAuth>
-              <div className="pt-32 px-8 text-quaternary text-center">
-                <h1 className="text-3xl font-bold">Configurações</h1>
-                <p className="mt-4">Em construção...</p>
-              </div>
-            </RequireAuth>
-          }
-        />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      {!isMemberArea && <Footer />}
+      <Footer />
     </>
   );
 }

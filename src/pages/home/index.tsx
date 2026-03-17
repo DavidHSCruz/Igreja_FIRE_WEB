@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FaArrowRight, FaPrayingHands, FaHeart } from "react-icons/fa";
-import { Banner } from "../components/Banner/Banner";
-import { Formulario } from "../components/Formulario/Formulario";
-import { CardClick } from "../components/Banner/Card/CardClick/CardClick";
+import { Banner } from "./components/Banner/Banner";
+import { Formulario } from "./components/Formulario/Formulario";
+import { CardClick } from "./components/Banner/Card/CardClick/CardClick";
 
 export const Home = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
