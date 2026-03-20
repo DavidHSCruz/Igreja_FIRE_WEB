@@ -7,7 +7,7 @@ export const NavBar = () => {
   const [visible, setVisible] = useState(true);
   const [doeVisible, setDoeVisible] = useState(false);
   const { pathname } = useLocation();
-  const socialUrl = (import.meta.env.VITE_SOCIAL_URL as string | undefined) || "http://localhost:5174/";
+  const socialUrl = "https://rede-unida.vercel.app/areamembro";
 
   useEffect(() => {
     let lastScrollY = window.scrollY;
@@ -46,9 +46,8 @@ export const NavBar = () => {
 
   return (
     <header
-      className={`flex items-center h-28 bg-primary shadow-lg fixed ${
-        visible ? "top-0" : "-top-28"
-      } transition-all left-0 w-full z-50`}
+      className={`flex items-center h-28 bg-primary shadow-lg fixed ${visible ? "top-0" : "-top-28"
+        } transition-all left-0 w-full z-50`}
     >
       <Link to="/" className="flex items-center gap-[5px]" aria-label="Igreja Fire">
         <Logo className="w-24 ml-10 z-10 text-secondary -translate-y-1" />
@@ -75,7 +74,7 @@ export const NavBar = () => {
         </ul>
 
         <a
-          href={socialUrl}
+          href={socialUrl || "http://localhost:5174/"}
           className="bg-quaternary/90 text-primary px-6 py-2 rounded-lg font-bold text-sm hover:bg-red-600 transition-all"
         >
           ÁREA DO MEMBRO
